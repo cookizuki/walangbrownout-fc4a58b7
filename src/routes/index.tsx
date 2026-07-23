@@ -490,6 +490,15 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
   return <td className={`px-4 py-3 ${className}`}>{children}</td>;
 }
 
+function MetaCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="card-surface p-5">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h4>
+      <div className="mt-3 divide-y divide-border">{children}</div>
+    </div>
+  );
+}
+
 function AbcChip({ abc }: { abc: ABC }) {
   const map = {
     A: { bg: "bg-abc-a/15", color: "var(--abc-a)" },
