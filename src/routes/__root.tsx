@@ -77,14 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "WalangBrownout · Real-Time Inventory OS" },
+      { name: "description", content: "Walang Kulang, Walang Sobra — real-time inventory management for WalangBrownout Appliances. FIFO batches, ABC classification, seasonal reorder alerts." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "WalangBrownout · Real-Time Inventory OS" },
+      { property: "og:description", content: "Walang Kulang, Walang Sobra — real-time inventory management for WalangBrownout Appliances. FIFO batches, ABC classification, seasonal reorder alerts." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "WalangBrownout · Real-Time Inventory OS" },
+      { name: "twitter:description", content: "Walang Kulang, Walang Sobra — real-time inventory management for WalangBrownout Appliances. FIFO batches, ABC classification, seasonal reorder alerts." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/VgAAn2fKzwU3hqrwNmoacY35Rz83/social-images/social-1784803212261-walangbrownout-logo.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/VgAAn2fKzwU3hqrwNmoacY35Rz83/social-images/social-1784803212261-walangbrownout-logo.webp" },
     ],
     links: [
       {

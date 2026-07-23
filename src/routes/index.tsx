@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
       { title: "WalangBrownout · Real-Time Inventory OS" },
       { name: "description", content: "Walang Kulang, Walang Sobra — real-time inventory management for WalangBrownout Appliances. FIFO batches, ABC classification, seasonal reorder alerts." },
       { property: "og:title", content: "WalangBrownout · Real-Time Inventory OS" },
-      { property: "og:description", content: "Real-time inventory OS with FIFO batches, ABC classification, and seasonal reorder alerts." },
+      { property: "og:description", content: "Walang Kulang, Walang Sobra — real-time inventory management for WalangBrownout Appliances. FIFO batches, ABC classification, seasonal reorder alerts." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
