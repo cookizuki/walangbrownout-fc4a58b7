@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  batches, categories, deriveAlerts, fifoOrder, locations, money,
-  onHand, products, ropSeasonal, ropStandard, suppliers, transactions, users,
-  type ABC, type AlertType,
+  batches, deriveAlerts, fifoOrder, locations, onHand, products,
+  ropSeasonal, ropStandard, transactions, users,
+  type ABC, type Alert, type AlertType,
 } from "@/lib/inventory-data";
 
 export const Route = createFileRoute("/")({
@@ -22,199 +22,221 @@ export const Route = createFileRoute("/")({
 
 type Tab = "overview" | "inventory" | "batches" | "alerts";
 
+const PAGE_META: Record<Tab, { title: string; subtitle: string }> = {
+  overview: { title: "Overview", subtitle: "Page subtitle — real-time system status" },
+  inventory: { title: "Inventory", subtitle: "All tracked SKUs, live stock levels" },
+  batches: { title: "Batches", subtitle: "FIFO-ordered lots and expiry tracking" },
+  alerts: { title: "Alerts", subtitle: "Reorder and expiry notifications" },
+};
+
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("overview");
-  const alerts = useMemo(deriveAlerts, []);
+  const [query, setQuery] = useState("");
+  const [acked, setAcked] = useState<string[]>([]);
 
-  const totalValue = useMemo(
-    () => products.reduce((s, p) => s + onHand(p.sku) * p.unitCost, 0),
-    []
-  );
-  const totalSkus = products.length;
-  const openAlerts = alerts.filter(a => a.status === "OPEN").length;
-  const todayTx = transactions.length;
+  const allAlerts = useMemo(deriveAlerts, []);
+  const alerts = allAlerts.filter(a => !acked.includes(a.id));
+  const openAlerts = alerts.length;
+
+  const meta = PAGE_META[tab];
+  const showSearch = tab === "overview" || tab === "inventory";
 
   return (
-    <div className="min-h-screen bg-background">
-      <TopNav tab={tab} setTab={setTab} openAlerts={openAlerts} />
+    <div className="flex min-h-screen bg-muted/40">
+      <SideNav tab={tab} setTab={setTab} openAlerts={openAlerts} />
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        {tab === "overview" && (
-          <OverviewPage
-            totalValue={totalValue}
-            totalSkus={totalSkus}
-            openAlerts={openAlerts}
-            todayTx={todayTx}
-            alerts={alerts}
-          />
-        )}
-        {tab === "inventory" && <InventoryPage />}
-        {tab === "batches" && <BatchesPage />}
-        {tab === "alerts" && <AlertsPage alerts={alerts} />}
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex flex-wrap items-center gap-4 border-b border-border bg-surface px-6 py-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Page title</p>
+            <h1 className="font-display text-2xl font-semibold leading-tight">{meta.title}</h1>
+            <p className="text-xs text-muted-foreground">{meta.subtitle}</p>
+          </div>
+          {showSearch && (
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="w-56 rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary"
+            />
+          )}
+          <LiveClock />
+        </header>
 
-      <footer className="mx-auto max-w-7xl px-6 pb-10 pt-4 text-xs text-muted-foreground">
-        <p>WalangBrownout Inventory OS · Prototype by Maturan · Merilles · Ocariza · Pacao</p>
-      </footer>
+        <main className="flex-1 px-6 py-6">
+          {tab === "overview" && (
+            <OverviewPage query={query} alerts={alerts} onAck={id => setAcked(a => [...a, id])} />
+          )}
+          {tab === "inventory" && <InventoryPage query={query} />}
+          {tab === "batches" && <BatchesPage />}
+          {tab === "alerts" && <AlertsPage alerts={alerts} onAck={id => setAcked(a => [...a, id])} />}
+        </main>
+      </div>
     </div>
   );
 }
 
-/* --------------------------------- Nav ---------------------------------- */
+/* ------------------------------- Sidebar -------------------------------- */
 
-function TopNav({ tab, setTab, openAlerts }: { tab: Tab; setTab: (t: Tab) => void; openAlerts: number }) {
+function SideNav({ tab, setTab, openAlerts }: { tab: Tab; setTab: (t: Tab) => void; openAlerts: number }) {
   const items: { key: Tab; label: string }[] = [
     { key: "overview", label: "Overview" },
     { key: "inventory", label: "Inventory" },
     { key: "batches", label: "Batches" },
     { key: "alerts", label: "Alerts" },
   ];
+  const me = users[0];
   return (
-    <header className="border-b border-border bg-surface/80 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="grid h-10 w-10 place-items-center rounded-xl text-primary-foreground font-bold"
+    <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
+      <div className="px-5 py-5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Brand / Logo mark</p>
+        <div className="mt-2 flex items-center gap-2">
+          <span
+            className="grid h-7 w-7 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
             style={{ background: "var(--gradient-hero)" }}
           >
             WB
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold leading-tight">WalangBrownout</h1>
-            <p className="text-xs text-muted-foreground">Walang Kulang, Walang Sobra · Inventory OS</p>
+          </span>
+          <span className="font-semibold">Inventory OS</span>
+        </div>
+      </div>
+
+      <p className="px-5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Main navigation</p>
+      <nav className="mt-2 flex flex-col gap-1 px-3">
+        {items.map(it => {
+          const active = tab === it.key;
+          return (
+            <button
+              key={it.key}
+              onClick={() => setTab(it.key)}
+              className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+                active
+                  ? "border-border bg-muted font-semibold text-foreground"
+                  : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              }`}
+            >
+              <span>{it.label}</span>
+              {it.key === "alerts" && openAlerts > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-bold text-background">
+                  {openAlerts}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto px-5 py-5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">User profile / account</p>
+        <div className="mt-2 flex items-center gap-2 border-t border-dashed border-border pt-3">
+          <span className="h-8 w-8 rounded-full bg-muted" />
+          <div className="leading-tight">
+            <div className="text-sm font-medium">{me?.role ?? "Purchasing Mgr."}</div>
+            <div className="text-xs text-muted-foreground">WalangBrownout</div>
           </div>
         </div>
-        <nav className="flex items-center gap-1">
-          {items.map(it => {
-            const active = tab === it.key;
-            return (
-              <button
-                key={it.key}
-                onClick={() => setTab(it.key)}
-                className={`relative rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {it.label}
-                {it.key === "alerts" && openAlerts > 0 && (
-                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] font-bold text-primary-foreground">
-                    {openAlerts}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
       </div>
-    </header>
+    </aside>
   );
 }
 
-/* ------------------------------ Overview -------------------------------- */
-
-function OverviewPage({
-  totalValue, totalSkus, openAlerts, todayTx, alerts,
-}: {
-  totalValue: number; totalSkus: number; openAlerts: number; todayTx: number;
-  alerts: ReturnType<typeof deriveAlerts>;
-}) {
+function LiveClock() {
+  const [now, setNow] = useState<string>("");
+  useEffect(() => {
+    const tick = () => setNow(new Date().toLocaleTimeString("en-PH", { hour12: false }));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
   return (
-    <div className="space-y-8">
-      <section
-        className="rounded-2xl border border-border p-8 text-primary-foreground"
-        style={{ background: "var(--gradient-hero)" }}
-      >
-        <p className="text-xs uppercase tracking-widest opacity-80">Real-Time Inventory OS</p>
-        <h2 className="mt-2 max-w-2xl text-3xl font-semibold leading-tight">
-          Stop the summer crunch, the mystery shrinkage, and the expiry trap — all from one live dashboard.
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm opacity-90">
-          Every receipt, sale, transfer, and write-off writes to the transaction log instantly. FIFO picks
-          the oldest batch. Seasonal ROP formulas fire alerts before the next Summer Crunch.
-        </p>
-      </section>
+    <div className="text-right">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Live system clock</p>
+      <div className="flex items-center justify-end gap-1.5 font-mono text-sm">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+        {now || "--:--:--"}
+      </div>
+    </div>
+  );
+}
 
+/* ------------------------------- Overview ------------------------------- */
+
+function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]; onAck: (id: string) => void }) {
+  const q = query.trim().toLowerCase();
+  const feed = transactions.filter(tx => {
+    if (!q) return true;
+    const p = products.find(pp => pp.sku === tx.sku);
+    return tx.sku.toLowerCase().includes(q) || (p?.name.toLowerCase().includes(q) ?? false);
+  });
+  const nearExpiry = batches.filter(b => {
+    const d = daysLeft(b.expirationDate);
+    return d !== null && d <= 30;
+  }).length;
+
+  return (
+    <div className="space-y-5">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">KPI summary cards</p>
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Inventory Value" value={money(totalValue)} tone="primary" />
-        <Kpi label="Active SKUs" value={String(totalSkus)} tone="info" />
-        <Kpi label="Transactions Today" value={String(todayTx)} tone="success" />
-        <Kpi label="Open Alerts" value={String(openAlerts)} tone="danger" />
+        <Kpi value={String(products.length)} label="Active SKUs Tracked" />
+        <Kpi value={String(alerts.length)} label="Open Alerts" />
+        <Kpi value={String(nearExpiry)} label="Batches Nearing Expiry" />
+        <Kpi value="0s" label="Sync Delay" />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="card-surface lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-border px-6 py-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Live Transaction Feed
-            </h3>
-            <span className="chip bg-success/15 text-success">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> live
-            </span>
+      <section className="grid gap-5 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Panel — auto-refreshes every ~3.5s
+          </p>
+          <div className="card-surface">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <h2 className="text-sm font-semibold">Live Transaction Feed</h2>
+              <span className="chip bg-success/15 text-success">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> streaming
+              </span>
+            </div>
+            <ul className="divide-y divide-dashed divide-border">
+              {feed.map(tx => {
+                const p = products.find(pp => pp.sku === tx.sku);
+                return (
+                  <li key={tx.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="h-3 w-3 shrink-0 rounded-full border border-border" />
+                      <span className="truncate">
+                        {titleCase(tx.type)} — {p?.name}{" "}
+                        <span className={tx.quantityDelta < 0 ? "text-danger" : "text-success"}>
+                          {tx.quantityDelta > 0 ? "+" : ""}{tx.quantityDelta}
+                        </span>{" "}
+                        <span className="text-muted-foreground">· {titleCase(tx.channel)}</span>
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(tx.timestamp)}</span>
+                  </li>
+                );
+              })}
+              {feed.length === 0 && (
+                <li className="px-5 py-8 text-center text-sm text-muted-foreground">No matching transactions</li>
+              )}
+            </ul>
           </div>
-          <ul className="divide-y divide-border">
-            {transactions.map(tx => {
-              const p = products.find(pp => pp.sku === tx.sku);
-              const user = users.find(u => u.id === tx.userId);
-              return (
-                <li key={tx.id} className="flex items-center justify-between px-6 py-3 text-sm">
-                  <div className="flex items-center gap-3">
-                    <TxBadge type={tx.type} />
-                    <div>
-                      <div className="font-medium">{p?.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {tx.sku} · {tx.channel.toLowerCase()} · {user?.name}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`font-mono text-sm ${tx.quantityDelta < 0 ? "text-danger" : "text-success"}`}>
-                      {tx.quantityDelta > 0 ? "+" : ""}{tx.quantityDelta}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {new Date(tx.timestamp).toLocaleString("en-PH", { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" })}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
         </div>
 
-        <div className="card-surface">
-          <div className="border-b border-border px-6 py-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Active Alerts</h3>
-          </div>
-          <ul className="divide-y divide-border">
-            {alerts.length === 0 && (
-              <li className="px-6 py-8 text-center text-sm text-muted-foreground">All clear · nothing to reorder</li>
-            )}
-            {alerts.slice(0, 6).map(a => (
-              <li key={a.id} className="px-6 py-3">
-                <div className="flex items-center gap-2">
-                  <AlertChip type={a.type} />
-                  <span className="text-sm font-medium">{a.sku}</span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{a.message}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="card-surface p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Reorder-Point Logic
-        </h3>
-        <div className="mt-3 grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg bg-muted p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Non-seasonal</p>
-            <p className="mt-1 font-mono text-sm">ROP = (Avg Daily Usage × Lead Time) + Safety Stock</p>
-            <p className="mt-2 text-xs text-muted-foreground">Smart Thermostat: (4 × 10) + 15 = <b className="text-foreground">55 units</b></p>
-          </div>
-          <div className="rounded-lg bg-muted p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Seasonal</p>
-            <p className="mt-1 font-mono text-sm">ROP = (Avg × Seasonal Factor × Lead Time) + Safety Stock</p>
-            <p className="mt-2 text-xs text-muted-foreground">Portable AC (Jun): (10 × 3.0 × 14) + 100 = <b className="text-foreground">520 units</b></p>
+        <div className="lg:col-span-2">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Panel — mirrors Alerts screen, top 3
+          </p>
+          <div className="card-surface">
+            <div className="border-b border-border px-5 py-3">
+              <h2 className="text-sm font-semibold">Active Alerts</h2>
+            </div>
+            <div className="space-y-3 p-4">
+              {alerts.slice(0, 3).map(a => (
+                <AlertCard key={a.id} alert={a} onAck={onAck} compact />
+              ))}
+              {alerts.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">All clear · nothing to reorder</p>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -222,88 +244,154 @@ function OverviewPage({
   );
 }
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone: "primary" | "info" | "success" | "danger" }) {
-  const toneMap = {
-    primary: "text-primary bg-primary/10",
-    info: "text-info bg-info/10",
-    success: "text-success bg-success/10",
-    danger: "text-danger bg-danger/10",
-  } as const;
+function Kpi({ value, label }: { value: string; label: string }) {
   return (
     <div className="card-surface p-5">
-      <div className={`chip ${toneMap[tone]}`}>{label}</div>
-      <div className="mt-3 font-display text-3xl font-semibold">{value}</div>
+      <div className="font-display text-3xl font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
 
 /* ------------------------------ Inventory ------------------------------- */
 
-function InventoryPage() {
-  const [query, setQuery] = useState("");
-  const [abcFilter, setAbcFilter] = useState<"" | ABC>("");
+type Pill = "All" | "Class A" | "Class B" | "Class C" | "FIFO-critical";
+
+function InventoryPage({ query }: { query: string }) {
+  const [pill, setPill] = useState<Pill>("All");
+  const q = query.trim().toLowerCase();
 
   const rows = products
-    .filter(p => (abcFilter ? p.abc === abcFilter : true))
-    .filter(p =>
-      query.trim() === "" ||
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.sku.toLowerCase().includes(query.toLowerCase())
-    );
+    .filter(p => {
+      if (pill === "All") return true;
+      if (pill === "FIFO-critical") return p.isFifoCritical;
+      return p.abc === (pill.slice(-1) as ABC);
+    })
+    .filter(p => !q || p.sku.toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Inventory" subtitle="Master product catalog · ABC-classified · reorder settings" />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search SKU or product name…"
-          className="w-72 rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
-        />
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1 text-xs">
-          {(["", "A", "B", "C"] as const).map(v => (
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Product table panel</p>
+      <div className="card-surface overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-4">
+          {(["All", "Class A", "Class B", "Class C", "FIFO-critical"] as Pill[]).map(v => (
             <button
-              key={v || "all"}
-              onClick={() => setAbcFilter(v as "" | ABC)}
-              className={`rounded-md px-3 py-1.5 font-semibold transition-colors ${
-                abcFilter === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+              key={v}
+              onClick={() => setPill(v)}
+              className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
+                pill === v ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
-              {v === "" ? "All" : `Class ${v}`}
+              {v}
             </button>
           ))}
         </div>
-      </div>
 
-      <div className="card-surface overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <Th>SKU</Th><Th>Product</Th><Th>Category</Th><Th>ABC</Th>
-              <Th className="text-right">On Hand</Th><Th className="text-right">ROP</Th>
-              <Th className="text-right">Unit Cost</Th><Th>Flags</Th>
+          <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
+            <tr className="border-b border-border">
+              <Th>SKU</Th><Th>Product</Th><Th>Class</Th><Th>Stock Level</Th>
+              <Th>Qty / ROP</Th><Th>Status</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-dashed divide-border">
             {rows.map(p => {
-              const stock = onHand(p.sku);
+              const qty = onHand(p.sku);
               const rop = p.seasonalFlag ? ropSeasonal(p) : ropStandard(p);
-              const low = stock <= rop;
+              const ratio = Math.min(qty / Math.max(rop, 1), 1.5);
+              const status = qty <= rop ? "REORDER" : ratio < 1.35 ? "WATCH" : "OK";
               return (
-                <tr key={p.sku} className="hover:bg-muted/50">
+                <tr key={p.sku} className="hover:bg-muted/40">
                   <Td className="font-mono text-xs">{p.sku}</Td>
                   <Td className="font-medium">{p.name}</Td>
-                  <Td className="text-muted-foreground">{categories.find(c => c.id === p.categoryId)?.name}</Td>
-                  <Td><AbcChip abc={p.abc} /></Td>
-                  <Td className={`text-right font-mono ${low ? "text-danger font-semibold" : ""}`}>{stock}</Td>
-                  <Td className="text-right font-mono text-muted-foreground">{rop}</Td>
-                  <Td className="text-right font-mono">{money(p.unitCost)}</Td>
                   <Td>
-                    <div className="flex flex-wrap gap-1">
-                      {p.seasonalFlag && <span className="chip bg-accent/15 text-accent-foreground" style={{ color: "var(--accent)" }}>seasonal</span>}
-                      {p.isFifoCritical && <span className="chip bg-info/15" style={{ color: "var(--info)" }}>FIFO</span>}
+                    <span className="inline-grid h-6 w-6 place-items-center rounded border border-border text-[11px] font-semibold">
+                      {p.abc}
+                    </span>
+                  </Td>
+                  <Td>
+                    <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full ${status === "REORDER" ? "bg-danger" : status === "WATCH" ? "bg-warning" : "bg-success"}`}
+                        style={{ width: `${Math.min((ratio / 1.5) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </Td>
+                  <Td className="font-mono text-xs">{qty} / {rop}</Td>
+                  <Td><StatusPill status={status} /></Td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
+          Stock-level bar: filled = qty vs. reorder point · status pill: OK / WATCH / REORDER
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: "OK" | "WATCH" | "REORDER" }) {
+  const map = {
+    OK: "border-success/40 text-success",
+    WATCH: "border-warning/50 text-warning",
+    REORDER: "border-danger/50 text-danger",
+  } as const;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold ${map[status]}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {status}
+    </span>
+  );
+}
+
+/* ------------------------------- Batches -------------------------------- */
+
+function BatchesPage() {
+  const rows = products.flatMap(p => fifoOrder(p.sku).map((b, idx) => ({ b, idx })));
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        Batch tracking panel — one row per received lot
+      </p>
+      <div className="card-surface overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
+            <tr className="border-b border-border">
+              <Th>Batch ID</Th><Th>SKU</Th><Th>Qty Remaining</Th><Th>Received</Th>
+              <Th>Expiry</Th><Th>Days Left</Th><Th>Pick Order</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-dashed divide-border">
+            {rows.map(({ b, idx }) => {
+              const d = daysLeft(b.expirationDate);
+              const soon = d !== null && d <= 30;
+              const loc = locations.find(l => l.id === b.locationId);
+              return (
+                <tr key={b.id} className="hover:bg-muted/40">
+                  <Td className="font-mono text-xs">{b.id}</Td>
+                  <Td className="font-mono text-xs">
+                    {b.sku} <span className="text-muted-foreground">· {loc?.code}</span>
+                  </Td>
+                  <Td className="font-mono">{b.quantityRemaining}</Td>
+                  <Td className="text-muted-foreground">{b.dateReceived}</Td>
+                  <Td className="text-muted-foreground">{b.expirationDate ?? "—"}</Td>
+                  <Td className={soon ? "font-semibold text-danger" : "text-muted-foreground"}>
+                    {d === null ? "—" : `${d} days`}
+                  </Td>
+                  <Td>
+                    <div className="flex items-center gap-2">
+                      {idx === 0 ? (
+                        <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold text-background">#1 NEXT</span>
+                      ) : (
+                        <span className="rounded-full border border-border px-2.5 py-1 text-[10px] text-muted-foreground">#{idx + 1}</span>
+                      )}
+                      {d !== null && (
+                        <span className={`rounded-full border border-dashed px-2.5 py-1 text-[10px] font-semibold ${soon ? "border-danger/50 text-danger" : "border-border text-muted-foreground"}`}>
+                          {soon ? "EXPIRING SOON" : "FRESH"}
+                        </span>
+                      )}
                     </div>
                   </Td>
                 </tr>
@@ -311,98 +399,9 @@ function InventoryPage() {
             })}
           </tbody>
         </table>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <MetaCard title="Suppliers">
-          {suppliers.map(s => (
-            <div key={s.id} className="flex justify-between py-1 text-sm">
-              <span>{s.name}</span>
-              <span className="text-xs text-muted-foreground">{s.contact}</span>
-            </div>
-          ))}
-        </MetaCard>
-        <MetaCard title="Warehouse Locations">
-          {locations.map(l => (
-            <div key={l.id} className="flex justify-between py-1 text-sm">
-              <span className="font-mono text-xs">{l.code}</span>
-              <span className="text-xs text-muted-foreground">{l.description}</span>
-            </div>
-          ))}
-        </MetaCard>
-        <MetaCard title="User Roles">
-          {users.map(u => (
-            <div key={u.id} className="flex justify-between py-1 text-sm">
-              <span>{u.name}</span>
-              <span className="text-xs text-muted-foreground">{u.role}</span>
-            </div>
-          ))}
-        </MetaCard>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------- Batches -------------------------------- */
-
-function BatchesPage() {
-  const grouped = products.map(p => ({ product: p, batches: fifoOrder(p.sku) }));
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Batches"
-        subtitle="FIFO pick order · oldest dateReceived first · expiration monitored for FIFO-critical items"
-      />
-
-      <div className="card-surface overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <Th>Batch</Th><Th>SKU</Th><Th>Location</Th>
-              <Th className="text-right">Received</Th><Th className="text-right">Remaining</Th>
-              <Th>Date Received</Th><Th>Expiration</Th><Th>Pick Order</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {grouped.flatMap(({ product, batches: bs }) =>
-              bs.map((b, idx) => {
-                const loc = locations.find(l => l.id === b.locationId);
-                const isNext = idx === 0;
-                const daysToExp = b.expirationDate
-                  ? Math.ceil((new Date(b.expirationDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                  : null;
-                const nearExp = daysToExp !== null && daysToExp <= 30;
-                return (
-                  <tr key={b.id} className="hover:bg-muted/50">
-                    <Td className="font-mono text-xs">{b.id}</Td>
-                    <Td className="font-mono text-xs">{b.sku}</Td>
-                    <Td className="text-muted-foreground">{loc?.code}</Td>
-                    <Td className="text-right font-mono">{b.quantityReceived}</Td>
-                    <Td className="text-right font-mono">{b.quantityRemaining}</Td>
-                    <Td className="text-muted-foreground">{b.dateReceived}</Td>
-                    <Td>
-                      {b.expirationDate ? (
-                        <span className={nearExp ? "text-danger font-semibold" : "text-muted-foreground"}>
-                          {b.expirationDate}
-                          {nearExp && ` · ${daysToExp}d`}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </Td>
-                    <Td>
-                      {isNext ? (
-                        <span className="chip bg-primary/15" style={{ color: "var(--primary)" }}>#1 NEXT</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">#{idx + 1}</span>
-                      )}
-                    </Td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+        <p className="px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
+          Days-left countdown drives the expiry markdown flag · pick-order badge #1 = oldest unexpired lot
+        </p>
       </div>
     </div>
   );
@@ -410,124 +409,95 @@ function BatchesPage() {
 
 /* -------------------------------- Alerts -------------------------------- */
 
-function AlertsPage({ alerts }: { alerts: ReturnType<typeof deriveAlerts> }) {
-  const grouped = {
-    LOW_STOCK: alerts.filter(a => a.type === "LOW_STOCK"),
-    SEASONAL_REORDER: alerts.filter(a => a.type === "SEASONAL_REORDER"),
-    NEAR_EXPIRY: alerts.filter(a => a.type === "NEAR_EXPIRY"),
-    VARIANCE: alerts.filter(a => a.type === "VARIANCE"),
-  };
+function AlertsPage({ alerts, onAck }: { alerts: Alert[]; onAck: (id: string) => void }) {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Alerts"
-        subtitle="Auto-generated from ROP formulas and FIFO expiration windows"
-      />
-      {(Object.keys(grouped) as AlertType[]).map(k => {
-        const list = grouped[k];
-        if (list.length === 0) return null;
-        return (
-          <div key={k} className="card-surface">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <div className="flex items-center gap-3">
-                <AlertChip type={k} />
-                <h3 className="font-semibold">{alertTitle(k)}</h3>
-              </div>
-              <span className="text-xs text-muted-foreground">{list.length} open</span>
-            </div>
-            <ul className="divide-y divide-border">
-              {list.map(a => {
-                const p = products.find(pp => pp.sku === a.sku);
-                return (
-                  <li key={a.id} className="flex items-start justify-between px-6 py-3">
-                    <div>
-                      <div className="text-sm font-medium">{p?.name} <span className="font-mono text-xs text-muted-foreground">· {a.sku}</span></div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{a.message}</p>
-                    </div>
-                    <button className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
-                      Acknowledge
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        );
-      })}
-      {alerts.length === 0 && (
-        <div className="card-surface p-10 text-center text-sm text-muted-foreground">
-          Nothing to reorder or expire soon. Enjoy the calm.
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Alert list panel — full history, not just top 3
+        </p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Open-count badge</p>
+      </div>
+      <div className="card-surface">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h2 className="text-sm font-semibold">All Alerts</h2>
+          <span className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+            {alerts.length} OPEN
+          </span>
         </div>
-      )}
+        <ul className="divide-y divide-border">
+          {alerts.map(a => (
+            <li key={a.id} className="px-5 py-4">
+              <AlertCard alert={a} onAck={onAck} />
+            </li>
+          ))}
+          {alerts.length === 0 && (
+            <li className="px-5 py-12 text-center text-sm text-muted-foreground">
+              Nothing to reorder or expire soon. Enjoy the calm.
+            </li>
+          )}
+        </ul>
+        <p className="border-t border-border px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
+          Alert row — type icon, title (item), detail (threshold math), tag, timestamp
+        </p>
+      </div>
     </div>
   );
 }
 
-function alertTitle(t: AlertType) {
-  return {
-    LOW_STOCK: "Low Stock",
-    SEASONAL_REORDER: "Seasonal Reorder",
-    NEAR_EXPIRY: "Near Expiry (FIFO)",
-    VARIANCE: "Inventory Variance",
-  }[t];
-}
+function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id: string) => void; compact?: boolean }) {
+  const p = products.find(pp => pp.sku === alert.sku);
+  const tag = { LOW_STOCK: "STANDARD", SEASONAL_REORDER: "SEASONAL", NEAR_EXPIRY: "FIFO", VARIANCE: "VARIANCE" }[alert.type as AlertType];
+  const title = alert.batchId ? `${p?.name} — Batch ${alert.batchId}` : p?.name;
 
-/* --------------------------- Small primitives --------------------------- */
-
-function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div>
-      <h2 className="font-display text-2xl font-semibold">{title}</h2>
-      <p className="text-sm text-muted-foreground">{subtitle}</p>
+    <div className={compact ? "rounded-lg border border-dashed border-border p-3" : "flex items-start justify-between gap-4"}>
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border bg-muted text-sm font-bold">
+          !
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold">{title}</div>
+          <p className="text-xs text-muted-foreground">{alert.message}</p>
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="rounded-full border border-border px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{tag}</span>
+            <span className="text-[10px] text-muted-foreground">{timeAgo(alert.createdAt)}</span>
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={() => onAck(alert.id)}
+        className={`shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted ${compact ? "mt-3 w-full" : ""}`}
+      >
+        Acknowledge
+      </button>
     </div>
   );
 }
 
-function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-4 py-3 font-semibold ${className}`}>{children}</th>;
+/* ------------------------------- Helpers -------------------------------- */
+
+function daysLeft(dateISO?: string): number | null {
+  if (!dateISO) return null;
+  return Math.ceil((new Date(dateISO).getTime() - Date.now()) / 86400000);
+}
+
+function timeAgo(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  return `${Math.round(hrs / 24)} d ago`;
+}
+
+function titleCase(s: string) {
+  return s.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function Th({ children }: { children: React.ReactNode }) {
+  return <th className="px-5 py-3 font-semibold">{children}</th>;
 }
 function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 ${className}`}>{children}</td>;
-}
-
-function MetaCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="card-surface p-5">
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h4>
-      <div className="mt-3 divide-y divide-border">{children}</div>
-    </div>
-  );
-}
-
-function AbcChip({ abc }: { abc: ABC }) {
-  const map = {
-    A: { bg: "bg-abc-a/15", color: "var(--abc-a)" },
-    B: { bg: "bg-abc-b/15", color: "var(--abc-b)" },
-    C: { bg: "bg-abc-c/15", color: "var(--abc-c)" },
-  }[abc];
-  return <span className={`chip ${map.bg}`} style={{ color: map.color }}>Class {abc}</span>;
-}
-
-function TxBadge({ type }: { type: string }) {
-  const tone: Record<string, string> = {
-    SALE: "bg-danger/15 text-danger",
-    RECEIPT: "bg-success/15 text-success",
-    ADJUSTMENT: "bg-warning/15",
-    TRANSFER: "bg-info/15 text-info",
-    RETURN: "bg-info/15 text-info",
-    WRITE_OFF: "bg-danger/15 text-danger",
-  };
-  const style = type === "ADJUSTMENT" ? { color: "var(--warning)" } : undefined;
-  return <span className={`chip ${tone[type] ?? "bg-muted"}`} style={style}>{type.replace("_", " ")}</span>;
-}
-
-function AlertChip({ type }: { type: AlertType }) {
-  const map: Record<AlertType, { bg: string; color: string; label: string }> = {
-    LOW_STOCK: { bg: "bg-danger/15", color: "var(--danger)", label: "Low Stock" },
-    SEASONAL_REORDER: { bg: "bg-accent/15", color: "var(--accent)", label: "Seasonal" },
-    NEAR_EXPIRY: { bg: "bg-warning/15", color: "var(--warning)", label: "Near Expiry" },
-    VARIANCE: { bg: "bg-info/15", color: "var(--info)", label: "Variance" },
-  };
-  const m = map[type];
-  return <span className={`chip ${m.bg}`} style={{ color: m.color }}>{m.label}</span>;
+  return <td className={`px-5 py-3 ${className}`}>{children}</td>;
 }
