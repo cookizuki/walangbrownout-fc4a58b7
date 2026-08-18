@@ -128,16 +128,17 @@ function Dashboard() {
 
 /* ------------------------------- Sidebar -------------------------------- */
 
-function SideNav({ tab, setTab, openAlerts }: { tab: Tab; setTab: (t: Tab) => void; openAlerts: number }) {
-  const items: { key: Tab; label: string }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "inventory", label: "Inventory" },
-    { key: "batches", label: "Batches" },
-    { key: "alerts", label: "Alerts" },
-  ];
+function SideNav({ tab, setTab, openAlerts, mobile = false }: { tab: Tab; setTab: (t: Tab) => void; openAlerts: number; mobile?: boolean }) {
+  const items = NAV_ITEMS;
   const me = users[0];
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
+    <aside
+      className={
+        mobile
+          ? "flex h-full w-full flex-col border-r border-border bg-surface"
+          : "hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex"
+      }
+    >
       <div className="px-5 py-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Brand / Logo mark</p>
         <div className="mt-2 flex items-center gap-2">
