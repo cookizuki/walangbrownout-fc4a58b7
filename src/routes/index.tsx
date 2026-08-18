@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  batches, deriveAlerts, fifoOrder, locations, onHand, products,
-  ropSeasonal, ropStandard, transactions, users,
-  type ABC, type Alert, type AlertType,
+  batches, cycleCounts, deriveAlerts, fifoOrder, locations, onHand, pickTasks, products,
+  purchaseOrders, receivingLines, ropSeasonal, ropStandard, suppliers, transactions,
+  money, type ABC, type Alert, type AlertType,
 } from "@/lib/inventory-data";
+import { roleLabel, useSession, type Role } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -20,32 +21,58 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-type Tab = "overview" | "inventory" | "batches" | "alerts";
+type Tab =
+  | "overview" | "inventory" | "batches" | "alerts"
+  | "myday" | "counts" | "reorder"
+  | "picks" | "receiving";
 
 const PAGE_META: Record<Tab, { title: string; subtitle: string }> = {
   overview: { title: "Overview", subtitle: "Page subtitle — real-time system status" },
   inventory: { title: "Inventory", subtitle: "All tracked SKUs, live stock levels" },
   batches: { title: "Batches", subtitle: "FIFO-ordered lots and expiry tracking" },
   alerts: { title: "Alerts", subtitle: "Reorder and expiry notifications" },
+  myday: { title: "My Day", subtitle: "Your assigned work for today" },
+  counts: { title: "Stock Counts", subtitle: "Cycle counts and variance logging" },
+  reorder: { title: "Reorder Review", subtitle: "ROP breaches queued for purchasing" },
+  picks: { title: "Pick Tasks", subtitle: "FIFO-enforced picking queue" },
+  receiving: { title: "Receiving", subtitle: "Inbound POs, putaway and location" },
 };
 
-const NAV_ITEMS: { key: Tab; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "inventory", label: "Inventory" },
-  { key: "batches", label: "Batches" },
-  { key: "alerts", label: "Alerts" },
-];
+const ROLE_NAV: Record<Role, Tab[]> = {
+  ADMIN: ["overview", "inventory", "batches", "alerts"],
+  INVENTORY_STAFF: ["myday", "counts", "inventory", "reorder"],
+  WAREHOUSE_STAFF: ["myday", "picks", "receiving", "batches"],
+};
 
 function Dashboard() {
+  const navigate = useNavigate();
+  const { account, ready, signOut } = useSession();
   const [tab, setTab] = useState<Tab>("overview");
   const [query, setQuery] = useState("");
   const [acked, setAcked] = useState<string[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    if (ready && !account) navigate({ to: "/login", replace: true });
+  }, [ready, account, navigate]);
+
+  useEffect(() => {
+    if (account) setTab(ROLE_NAV[account.role][0]!);
+  }, [account?.role]);
+
   const allAlerts = useMemo(deriveAlerts, []);
   const alerts = allAlerts.filter(a => !acked.includes(a.id));
   const openAlerts = alerts.length;
 
+  if (!ready || !account) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-muted/40 text-sm text-muted-foreground">
+        Loading your workspace…
+      </div>
+    );
+  }
+
+  const navTabs = ROLE_NAV[account.role];
   const meta = PAGE_META[tab];
   const showSearch = tab === "overview" || tab === "inventory";
 
@@ -54,9 +81,26 @@ function Dashboard() {
     setMenuOpen(false);
   };
 
+  const handleSignOut = () => {
+    signOut();
+    navigate({ to: "/login", replace: true });
+  };
+
+  const nav = (
+    <SideNav
+      tab={tab}
+      setTab={select}
+      openAlerts={openAlerts}
+      tabs={navTabs}
+      name={account.name}
+      role={roleLabel(account.role)}
+      onSignOut={handleSignOut}
+    />
+  );
+
   return (
     <div className="flex min-h-screen bg-muted/40">
-      <SideNav tab={tab} setTab={select} openAlerts={openAlerts} />
+      {nav}
 
       {menuOpen && (
         <div
@@ -67,7 +111,16 @@ function Dashboard() {
       )}
       {menuOpen && (
         <div className="fixed inset-y-0 left-0 z-50 w-64 max-w-[80vw] md:hidden">
-          <SideNav tab={tab} setTab={select} openAlerts={openAlerts} mobile />
+          <SideNav
+            tab={tab}
+            setTab={select}
+            openAlerts={openAlerts}
+            tabs={navTabs}
+            name={account.name}
+            role={roleLabel(account.role)}
+            onSignOut={handleSignOut}
+            mobile
+          />
         </div>
       )}
 
@@ -98,7 +151,9 @@ function Dashboard() {
 
         <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-surface px-4 py-4 sm:px-6 md:flex md:flex-wrap md:gap-4">
           <div className="min-w-0 md:flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Page title</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              {roleLabel(account.role)}
+            </p>
             <h1 className="truncate font-display text-xl font-semibold leading-tight sm:text-2xl">{meta.title}</h1>
             <p className="truncate text-xs text-muted-foreground">{meta.subtitle}</p>
           </div>
@@ -120,17 +175,26 @@ function Dashboard() {
           {tab === "inventory" && <InventoryPage query={query} />}
           {tab === "batches" && <BatchesPage />}
           {tab === "alerts" && <AlertsPage alerts={alerts} onAck={id => setAcked(a => [...a, id])} />}
+          {tab === "myday" && <MyDayPage role={account.role} name={account.name} alerts={alerts} />}
+          {tab === "counts" && <StockCountsPage />}
+          {tab === "reorder" && <ReorderReviewPage />}
+          {tab === "picks" && <PickTasksPage />}
+          {tab === "receiving" && <ReceivingPage />}
         </main>
       </div>
     </div>
   );
 }
 
+
 /* ------------------------------- Sidebar -------------------------------- */
 
-function SideNav({ tab, setTab, openAlerts, mobile = false }: { tab: Tab; setTab: (t: Tab) => void; openAlerts: number; mobile?: boolean }) {
-  const items = NAV_ITEMS;
-  const me = users[0];
+function SideNav({
+  tab, setTab, openAlerts, tabs, name, role, onSignOut, mobile = false,
+}: {
+  tab: Tab; setTab: (t: Tab) => void; openAlerts: number; tabs: Tab[];
+  name: string; role: string; onSignOut: () => void; mobile?: boolean;
+}) {
   return (
     <aside
       className={
@@ -154,20 +218,20 @@ function SideNav({ tab, setTab, openAlerts, mobile = false }: { tab: Tab; setTab
 
       <p className="px-5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Main navigation</p>
       <nav className="mt-2 flex flex-col gap-1 px-3">
-        {items.map(it => {
-          const active = tab === it.key;
+        {tabs.map(key => {
+          const active = tab === key;
           return (
             <button
-              key={it.key}
-              onClick={() => setTab(it.key)}
+              key={key}
+              onClick={() => setTab(key)}
               className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
                 active
                   ? "border-border bg-muted font-semibold text-foreground"
                   : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               }`}
             >
-              <span>{it.label}</span>
-              {it.key === "alerts" && openAlerts > 0 && (
+              <span>{PAGE_META[key].title}</span>
+              {key === "alerts" && openAlerts > 0 && (
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-bold text-background">
                   {openAlerts}
                 </span>
@@ -180,16 +244,25 @@ function SideNav({ tab, setTab, openAlerts, mobile = false }: { tab: Tab; setTab
       <div className="mt-auto px-5 py-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">User profile / account</p>
         <div className="mt-2 flex items-center gap-2 border-t border-dashed border-border pt-3">
-          <span className="h-8 w-8 rounded-full bg-muted" />
-          <div className="leading-tight">
-            <div className="text-sm font-medium">{me?.role ?? "Purchasing Mgr."}</div>
-            <div className="text-xs text-muted-foreground">WalangBrownout</div>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-bold">
+            {name.split(" ").map(w => w[0]).slice(0, 2).join("")}
+          </span>
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-sm font-medium">{name}</div>
+            <div className="truncate text-xs text-muted-foreground">{role}</div>
           </div>
         </div>
+        <button
+          onClick={onSignOut}
+          className="mt-3 w-full rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+        >
+          Sign out
+        </button>
       </div>
     </aside>
   );
 }
+
 
 function LiveClock() {
   const [now, setNow] = useState<string>("");
@@ -561,4 +634,427 @@ function Th({ children }: { children: React.ReactNode }) {
 }
 function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-5 py-3 ${className}`}>{children}</td>;
+}
+
+/* --------------------------- Shared role pieces --------------------------- */
+
+function TaskPill({ status }: { status: "PENDING" | "IN_PROGRESS" | "DONE" }) {
+  const map = {
+    PENDING: "border-warning/50 text-warning",
+    IN_PROGRESS: "border-info/50 text-info",
+    DONE: "border-success/40 text-success",
+  } as const;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold ${map[status]}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {titleCase(status)}
+    </span>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{children}</p>;
+}
+
+function Panel({ title, right, children, footer }: { title: string; right?: React.ReactNode; children: React.ReactNode; footer?: string }) {
+  return (
+    <div className="card-surface overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        {right}
+      </div>
+      {children}
+      {footer && <p className="border-t border-border px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">{footer}</p>}
+    </div>
+  );
+}
+
+/* -------------------------------- My Day --------------------------------- */
+
+function MyDayPage({ role, name, alerts }: { role: Role; name: string; alerts: Alert[] }) {
+  const isWarehouse = role === "WAREHOUSE_STAFF";
+  const openPicks = pickTasks.filter(t => t.status !== "DONE");
+  const openCounts = cycleCounts.filter(c => c.status !== "DONE");
+  const inbound = receivingLines.filter(r => r.status !== "PUT_AWAY");
+  const variances = cycleCounts.filter(c => c.countedQty !== null && c.countedQty !== c.systemQty);
+
+  return (
+    <div className="space-y-5">
+      <SectionLabel>KPI summary cards</SectionLabel>
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {isWarehouse ? (
+          <>
+            <Kpi value={String(openPicks.length)} label="Open Pick Tasks" />
+            <Kpi value={String(openPicks.filter(t => t.priority === "HIGH").length)} label="High Priority" />
+            <Kpi value={String(inbound.length)} label="Inbound Deliveries" />
+            <Kpi value={String(batches.filter(b => { const d = daysLeft(b.expirationDate); return d !== null && d <= 30; }).length)} label="Lots Expiring ≤30d" />
+          </>
+        ) : (
+          <>
+            <Kpi value={String(openCounts.length)} label="Counts Due Today" />
+            <Kpi value={String(variances.length)} label="Variances Logged" />
+            <Kpi value={String(alerts.filter(a => a.type !== "NEAR_EXPIRY").length)} label="ROP Breaches" />
+            <Kpi value={String(products.length)} label="SKUs In Scope" />
+          </>
+        )}
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <SectionLabel>Panel — your queue for today</SectionLabel>
+          <div className="mt-1.5">
+            <Panel title={isWarehouse ? "Assigned Pick Tasks" : "Assigned Cycle Counts"} right={<span className="chip bg-info/15 text-info">{name}</span>}>
+              <ul className="divide-y divide-dashed divide-border">
+                {isWarehouse
+                  ? openPicks.map(t => {
+                      const p = products.find(pp => pp.sku === t.sku);
+                      const loc = locations.find(l => l.id === t.locationId);
+                      return (
+                        <li key={t.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{p?.name} · {t.quantity} pcs</div>
+                            <div className="text-xs text-muted-foreground">
+                              {t.id} · Batch {t.batchId} · {loc?.code} · {t.orderRef}
+                            </div>
+                          </div>
+                          <TaskPill status={t.status} />
+                        </li>
+                      );
+                    })
+                  : openCounts.map(c => {
+                      const p = products.find(pp => pp.sku === c.sku);
+                      const loc = locations.find(l => l.id === c.locationId);
+                      return (
+                        <li key={c.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{p?.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {c.id} · {loc?.code} · system {c.systemQty} · due {c.dueDate}
+                            </div>
+                          </div>
+                          <TaskPill status={c.status} />
+                        </li>
+                      );
+                    })}
+              </ul>
+            </Panel>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2">
+          <SectionLabel>Panel — what needs your eyes</SectionLabel>
+          <div className="mt-1.5">
+            <Panel title={isWarehouse ? "Inbound Today" : "Reorder Watchlist"}>
+              <ul className="divide-y divide-dashed divide-border">
+                {isWarehouse
+                  ? inbound.map(r => {
+                      const p = products.find(pp => pp.sku === r.sku);
+                      return (
+                        <li key={r.id} className="px-5 py-3 text-sm">
+                          <div className="truncate font-medium">{p?.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {r.poNumber} · {r.quantityOrdered} pcs · ETA {r.expectedDate}
+                          </div>
+                        </li>
+                      );
+                    })
+                  : alerts.slice(0, 4).map(a => (
+                      <li key={a.id} className="px-5 py-3 text-sm">
+                        <div className="truncate font-medium">{products.find(p => p.sku === a.sku)?.name}</div>
+                        <p className="text-xs text-muted-foreground">{a.message}</p>
+                      </li>
+                    ))}
+                {(isWarehouse ? inbound : alerts).length === 0 && (
+                  <li className="px-5 py-8 text-center text-sm text-muted-foreground">Nothing pending.</li>
+                )}
+              </ul>
+            </Panel>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ----------------------- Inventory staff: counts ------------------------- */
+
+function StockCountsPage() {
+  const [counted, setCounted] = useState<Record<string, string>>({});
+
+  return (
+    <div className="space-y-2">
+      <SectionLabel>Cycle count panel — variance = counted − system</SectionLabel>
+      <Panel
+        title="Stock Counts"
+        right={
+          <span className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+            {cycleCounts.filter(c => c.status !== "DONE").length} DUE
+          </span>
+        }
+        footer="Variance drives the adjustment transaction logged against the batch"
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
+              <tr className="border-b border-border">
+                <Th>Count ID</Th><Th>Product</Th><Th>Location</Th><Th>System</Th>
+                <Th>Counted</Th><Th>Variance</Th><Th>Status</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-dashed divide-border">
+              {cycleCounts.map(c => {
+                const p = products.find(pp => pp.sku === c.sku);
+                const loc = locations.find(l => l.id === c.locationId);
+                const entered = counted[c.id];
+                const value = c.countedQty ?? (entered !== undefined && entered !== "" ? Number(entered) : null);
+                const variance = value === null ? null : value - c.systemQty;
+                return (
+                  <tr key={c.id} className="hover:bg-muted/40">
+                    <Td className="font-mono text-xs">{c.id}</Td>
+                    <Td className="font-medium">{p?.name}</Td>
+                    <Td className="text-muted-foreground">{loc?.code}</Td>
+                    <Td className="font-mono">{c.systemQty}</Td>
+                    <Td>
+                      {c.countedQty !== null ? (
+                        <span className="font-mono">{c.countedQty}</span>
+                      ) : (
+                        <input
+                          inputMode="numeric"
+                          value={entered ?? ""}
+                          onChange={e => setCounted(s => ({ ...s, [c.id]: e.target.value.replace(/[^\d]/g, "").slice(0, 6) }))}
+                          placeholder="—"
+                          className="w-20 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs outline-none focus:border-primary"
+                        />
+                      )}
+                    </Td>
+                    <Td className={`font-mono ${variance && variance !== 0 ? "font-semibold text-danger" : "text-muted-foreground"}`}>
+                      {variance === null ? "—" : variance > 0 ? `+${variance}` : variance}
+                    </Td>
+                    <Td><TaskPill status={value !== null && c.status === "PENDING" ? "IN_PROGRESS" : c.status} /></Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function ReorderReviewPage() {
+  const rows = products
+    .map(p => {
+      const qty = onHand(p.sku);
+      const rop = p.seasonalFlag ? ropSeasonal(p) : ropStandard(p);
+      return { p, qty, rop, gap: rop - qty };
+    })
+    .filter(r => r.gap >= 0)
+    .sort((a, b) => b.gap - a.gap);
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <SectionLabel>Reorder queue — ROP breaches ready for purchasing</SectionLabel>
+        <Panel title="Suggested Reorders" footer="Standard ROP = ADU × Lead Time + Safety Stock · Seasonal ROP multiplies ADU by the seasonal factor">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px] text-sm">
+              <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
+                <tr className="border-b border-border">
+                  <Th>SKU</Th><Th>Product</Th><Th>On Hand / ROP</Th><Th>Formula</Th>
+                  <Th>Suggested Qty</Th><Th>Est. Cost</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-dashed divide-border">
+                {rows.map(({ p, qty, rop }) => (
+                  <tr key={p.sku} className="hover:bg-muted/40">
+                    <Td className="font-mono text-xs">{p.sku}</Td>
+                    <Td className="font-medium">{p.name}</Td>
+                    <Td className="font-mono text-xs">{qty} / {rop}</Td>
+                    <Td className="text-xs text-muted-foreground">
+                      {p.seasonalFlag
+                        ? `${p.avgDailyUsage} × ${p.seasonalFactor} × ${p.leadTimeDays} + ${p.safetyStock}`
+                        : `${p.avgDailyUsage} × ${p.leadTimeDays} + ${p.safetyStock}`}
+                    </Td>
+                    <Td className="font-mono">{p.reorderQuantity}</Td>
+                    <Td className="font-mono text-xs">{money(p.reorderQuantity * p.unitCost)}</Td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr><Td className="py-8 text-center text-muted-foreground">Nothing below reorder point.</Td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="space-y-2">
+        <SectionLabel>Purchase orders already raised</SectionLabel>
+        <Panel title="Open Purchase Orders">
+          <ul className="divide-y divide-dashed divide-border">
+            {purchaseOrders.map(po => {
+              const p = products.find(pp => pp.sku === po.sku);
+              const s = suppliers.find(su => su.id === po.supplierId);
+              return (
+                <li key={po.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{po.id} · {p?.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {s?.name} · {po.quantity} pcs · {money(po.quantity * po.unitCost)}
+                    </div>
+                  </div>
+                  <span className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+                    {titleCase(po.status)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------- Warehouse staff: picks & receiving ------------------- */
+
+function PickTasksPage() {
+  const [done, setDone] = useState<string[]>([]);
+  const order = { HIGH: 0, NORMAL: 1, LOW: 2 } as const;
+  const rows = [...pickTasks].sort((a, b) => order[a.priority] - order[b.priority]);
+
+  return (
+    <div className="space-y-2">
+      <SectionLabel>Pick queue — batch is pre-assigned by FIFO, oldest lot first</SectionLabel>
+      <Panel
+        title="Pick Tasks"
+        right={
+          <span className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+            {rows.filter(t => t.status !== "DONE" && !done.includes(t.id)).length} OPEN
+          </span>
+        }
+        footer="Picking a different lot than the assigned batch breaks FIFO and raises a variance alert"
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-sm">
+            <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
+              <tr className="border-b border-border">
+                <Th>Task</Th><Th>Product</Th><Th>Pick From</Th><Th>Qty</Th>
+                <Th>Order</Th><Th>Priority</Th><Th>Status</Th><Th>{" "}</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-dashed divide-border">
+              {rows.map(t => {
+                const p = products.find(pp => pp.sku === t.sku);
+                const loc = locations.find(l => l.id === t.locationId);
+                const status = done.includes(t.id) ? "DONE" : t.status;
+                return (
+                  <tr key={t.id} className="hover:bg-muted/40">
+                    <Td className="font-mono text-xs">{t.id}</Td>
+                    <Td className="font-medium">{p?.name}</Td>
+                    <Td className="font-mono text-xs">
+                      {t.batchId} <span className="text-muted-foreground">· {loc?.code}</span>
+                    </Td>
+                    <Td className="font-mono">{t.quantity}</Td>
+                    <Td className="font-mono text-xs text-muted-foreground">{t.orderRef}</Td>
+                    <Td>
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
+                        t.priority === "HIGH" ? "border-danger/50 text-danger"
+                        : t.priority === "NORMAL" ? "border-border text-muted-foreground"
+                        : "border-dashed border-border text-muted-foreground"
+                      }`}>
+                        {t.priority}
+                      </span>
+                    </Td>
+                    <Td><TaskPill status={status} /></Td>
+                    <Td>
+                      {status !== "DONE" && (
+                        <button
+                          onClick={() => setDone(d => [...d, t.id])}
+                          className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                        >
+                          Mark picked
+                        </button>
+                      )}
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function ReceivingPage() {
+  return (
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <SectionLabel>Inbound panel — one row per PO line</SectionLabel>
+        <Panel title="Receiving & Putaway" footer="Receiving creates a new inventory batch stamped with date received and its warehouse location">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
+                <tr className="border-b border-border">
+                  <Th>Line</Th><Th>PO</Th><Th>Product</Th><Th>Supplier</Th>
+                  <Th>Ordered / Received</Th><Th>ETA</Th><Th>Putaway</Th><Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-dashed divide-border">
+                {receivingLines.map(r => {
+                  const p = products.find(pp => pp.sku === r.sku);
+                  const s = suppliers.find(su => su.id === r.supplierId);
+                  const loc = locations.find(l => l.id === r.locationId);
+                  return (
+                    <tr key={r.id} className="hover:bg-muted/40">
+                      <Td className="font-mono text-xs">{r.id}</Td>
+                      <Td className="font-mono text-xs">{r.poNumber}</Td>
+                      <Td className="font-medium">{p?.name}</Td>
+                      <Td className="text-muted-foreground">{s?.name}</Td>
+                      <Td className="font-mono text-xs">{r.quantityOrdered} / {r.quantityReceived}</Td>
+                      <Td className="text-muted-foreground">{r.expectedDate}</Td>
+                      <Td className="font-mono text-xs">{loc?.code}</Td>
+                      <Td>
+                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
+                          r.status === "IN_TRANSIT" ? "border-warning/50 text-warning"
+                          : r.status === "ARRIVED" ? "border-info/50 text-info"
+                          : "border-success/40 text-success"
+                        }`}>
+                          {titleCase(r.status)}
+                        </span>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="space-y-2">
+        <SectionLabel>Storage map — where the lots live</SectionLabel>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {locations.map(l => {
+            const lots = batches.filter(b => b.locationId === l.id);
+            const qty = lots.reduce((s, b) => s + b.quantityRemaining, 0);
+            return (
+              <div key={l.id} className="card-surface p-5">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-semibold">{l.code}</span>
+                  <span className="chip border border-border text-muted-foreground">{lots.length} lots</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{l.description}</p>
+                <div className="mt-3 font-display text-2xl font-semibold">{qty}</div>
+                <div className="text-xs text-muted-foreground">units on hand</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
