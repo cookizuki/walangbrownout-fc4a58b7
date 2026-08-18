@@ -189,9 +189,12 @@ function Dashboard() {
 
 /* ------------------------------- Sidebar -------------------------------- */
 
-function SideNav({ tab, setTab, openAlerts, mobile = false }: { tab: Tab; setTab: (t: Tab) => void; openAlerts: number; mobile?: boolean }) {
-  const items = NAV_ITEMS;
-  const me = users[0];
+function SideNav({
+  tab, setTab, openAlerts, tabs, name, role, onSignOut, mobile = false,
+}: {
+  tab: Tab; setTab: (t: Tab) => void; openAlerts: number; tabs: Tab[];
+  name: string; role: string; onSignOut: () => void; mobile?: boolean;
+}) {
   return (
     <aside
       className={
@@ -215,20 +218,20 @@ function SideNav({ tab, setTab, openAlerts, mobile = false }: { tab: Tab; setTab
 
       <p className="px-5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Main navigation</p>
       <nav className="mt-2 flex flex-col gap-1 px-3">
-        {items.map(it => {
-          const active = tab === it.key;
+        {tabs.map(key => {
+          const active = tab === key;
           return (
             <button
-              key={it.key}
-              onClick={() => setTab(it.key)}
+              key={key}
+              onClick={() => setTab(key)}
               className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
                 active
                   ? "border-border bg-muted font-semibold text-foreground"
                   : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               }`}
             >
-              <span>{it.label}</span>
-              {it.key === "alerts" && openAlerts > 0 && (
+              <span>{PAGE_META[key].title}</span>
+              {key === "alerts" && openAlerts > 0 && (
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-bold text-background">
                   {openAlerts}
                 </span>
@@ -241,16 +244,25 @@ function SideNav({ tab, setTab, openAlerts, mobile = false }: { tab: Tab; setTab
       <div className="mt-auto px-5 py-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">User profile / account</p>
         <div className="mt-2 flex items-center gap-2 border-t border-dashed border-border pt-3">
-          <span className="h-8 w-8 rounded-full bg-muted" />
-          <div className="leading-tight">
-            <div className="text-sm font-medium">{me?.role ?? "Purchasing Mgr."}</div>
-            <div className="text-xs text-muted-foreground">WalangBrownout</div>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-bold">
+            {name.split(" ").map(w => w[0]).slice(0, 2).join("")}
+          </span>
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-sm font-medium">{name}</div>
+            <div className="truncate text-xs text-muted-foreground">{role}</div>
           </div>
         </div>
+        <button
+          onClick={onSignOut}
+          className="mt-3 w-full rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+        >
+          Sign out
+        </button>
       </div>
     </aside>
   );
 }
+
 
 function LiveClock() {
   const [now, setNow] = useState<string>("");
