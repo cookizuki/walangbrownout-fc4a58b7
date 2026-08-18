@@ -207,3 +207,81 @@ export function fifoOrder(sku: string): InventoryBatch[] {
 
 export const money = (n: number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);
+
+// --- Role-specific work queues --------------------------------------------
+
+export type TaskStatus = "PENDING" | "IN_PROGRESS" | "DONE";
+export type Priority = "HIGH" | "NORMAL" | "LOW";
+
+export interface PickTask {
+  id: string;
+  sku: string;
+  batchId: string;
+  locationId: number;
+  quantity: number;
+  orderRef: string;
+  priority: Priority;
+  status: TaskStatus;
+  assignedTo: string;
+}
+
+export interface ReceivingLine {
+  id: string;
+  poNumber: string;
+  sku: string;
+  supplierId: number;
+  quantityOrdered: number;
+  quantityReceived: number;
+  expectedDate: string;
+  locationId: number;
+  status: "IN_TRANSIT" | "ARRIVED" | "PUT_AWAY";
+}
+
+export interface CycleCount {
+  id: string;
+  sku: string;
+  locationId: number;
+  systemQty: number;
+  countedQty: number | null;
+  dueDate: string;
+  status: TaskStatus;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  supplierId: number;
+  sku: string;
+  quantity: number;
+  unitCost: number;
+  status: "DRAFT" | "SUBMITTED" | "APPROVED" | "RECEIVED";
+  createdAt: string;
+}
+
+export const pickTasks: PickTask[] = [
+  { id: "PK-4401", sku: "ACU-014", batchId: "B-1101", locationId: 1, quantity: 6, orderRef: "SO-20881", priority: "HIGH", status: "PENDING", assignedTo: "Warehouse Staff" },
+  { id: "PK-4402", sku: "APU-100", batchId: "B-1055", locationId: 2, quantity: 12, orderRef: "SO-20884", priority: "HIGH", status: "IN_PROGRESS", assignedTo: "Warehouse Staff" },
+  { id: "PK-4403", sku: "THM-201", batchId: "B-1090", locationId: 3, quantity: 3, orderRef: "SO-20887", priority: "NORMAL", status: "PENDING", assignedTo: "Warehouse Staff" },
+  { id: "PK-4404", sku: "FAN-050", batchId: "B-1122", locationId: 1, quantity: 8, orderRef: "SO-20890", priority: "LOW", status: "PENDING", assignedTo: "Warehouse Staff" },
+  { id: "PK-4405", sku: "SEN-011", batchId: "B-1130", locationId: 3, quantity: 4, orderRef: "SO-20891", priority: "NORMAL", status: "DONE", assignedTo: "Warehouse Staff" },
+];
+
+export const receivingLines: ReceivingLine[] = [
+  { id: "RC-7701", poNumber: "PO-3320", sku: "ACU-014", supplierId: 1, quantityOrdered: 300, quantityReceived: 0, expectedDate: "2026-08-19", locationId: 1, status: "IN_TRANSIT" },
+  { id: "RC-7702", poNumber: "PO-3321", sku: "APU-100", supplierId: 2, quantityOrdered: 200, quantityReceived: 200, expectedDate: "2026-08-17", locationId: 2, status: "ARRIVED" },
+  { id: "RC-7703", poNumber: "PO-3318", sku: "FAN-050", supplierId: 1, quantityOrdered: 80, quantityReceived: 80, expectedDate: "2026-08-14", locationId: 1, status: "PUT_AWAY" },
+  { id: "RC-7704", poNumber: "PO-3322", sku: "THM-201", supplierId: 3, quantityOrdered: 60, quantityReceived: 0, expectedDate: "2026-08-22", locationId: 3, status: "IN_TRANSIT" },
+];
+
+export const cycleCounts: CycleCount[] = [
+  { id: "CC-2201", sku: "ACU-014", locationId: 1, systemQty: 540, countedQty: 538, dueDate: "2026-08-18", status: "DONE" },
+  { id: "CC-2202", sku: "APU-100", locationId: 2, systemQty: 365, countedQty: null, dueDate: "2026-08-18", status: "PENDING" },
+  { id: "CC-2203", sku: "THM-201", locationId: 3, systemQty: 42, countedQty: null, dueDate: "2026-08-19", status: "IN_PROGRESS" },
+  { id: "CC-2204", sku: "FAN-050", locationId: 1, systemQty: 78, countedQty: 74, dueDate: "2026-08-17", status: "DONE" },
+  { id: "CC-2205", sku: "SEN-011", locationId: 3, systemQty: 52, countedQty: null, dueDate: "2026-08-20", status: "PENDING" },
+];
+
+export const purchaseOrders: PurchaseOrder[] = [
+  { id: "PO-3320", supplierId: 1, sku: "ACU-014", quantity: 300, unitCost: 18500, status: "SUBMITTED", createdAt: "2026-08-12T09:00:00" },
+  { id: "PO-3321", supplierId: 2, sku: "APU-100", quantity: 200, unitCost: 1250, status: "RECEIVED", createdAt: "2026-08-08T14:30:00" },
+  { id: "PO-3322", supplierId: 3, sku: "THM-201", quantity: 60, unitCost: 4800, status: "APPROVED", createdAt: "2026-08-15T11:10:00" },
+];
