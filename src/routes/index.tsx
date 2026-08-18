@@ -941,7 +941,7 @@ function PickTasksPage() {
             <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
               <tr className="border-b border-border">
                 <Th>Task</Th><Th>Product</Th><Th>Pick From</Th><Th>Qty</Th>
-                <Th>Order</Th><Th>Priority</Th><Th>Status</Th><Th></Th>
+                <Th>Order</Th><Th>Priority</Th><Th>Status</Th><Th>{" "}</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dashed divide-border">
