@@ -96,7 +96,7 @@ export function signOut() {
 }
 
 export function getSession(): Account | null {
-  const id = read<string | null>(SESSION_KEY, null);
+  const id = readRawSessionId();
   if (!id) return null;
   return listAccounts().find(a => a.id === id) ?? null;
 }
