@@ -29,10 +29,18 @@ const PAGE_META: Record<Tab, { title: string; subtitle: string }> = {
   alerts: { title: "Alerts", subtitle: "Reorder and expiry notifications" },
 };
 
+const NAV_ITEMS: { key: Tab; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "inventory", label: "Inventory" },
+  { key: "batches", label: "Batches" },
+  { key: "alerts", label: "Alerts" },
+];
+
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("overview");
   const [query, setQuery] = useState("");
   const [acked, setAcked] = useState<string[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const allAlerts = useMemo(deriveAlerts, []);
   const alerts = allAlerts.filter(a => !acked.includes(a.id));
@@ -41,29 +49,71 @@ function Dashboard() {
   const meta = PAGE_META[tab];
   const showSearch = tab === "overview" || tab === "inventory";
 
+  const select = (t: Tab) => {
+    setTab(t);
+    setMenuOpen(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-muted/40">
-      <SideNav tab={tab} setTab={setTab} openAlerts={openAlerts} />
+      <SideNav tab={tab} setTab={select} openAlerts={openAlerts} />
+
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-foreground/40 md:hidden"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden
+        />
+      )}
+      {menuOpen && (
+        <div className="fixed inset-y-0 left-0 z-50 w-64 max-w-[80vw] md:hidden">
+          <SideNav tab={tab} setTab={select} openAlerts={openAlerts} mobile />
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center gap-4 border-b border-border bg-surface px-6 py-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Page title</p>
-            <h1 className="font-display text-2xl font-semibold leading-tight">{meta.title}</h1>
-            <p className="text-xs text-muted-foreground">{meta.subtitle}</p>
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3 md:hidden">
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
+              style={{ background: "var(--gradient-hero)" }}
+            >
+              WB
+            </span>
+            <span className="truncate font-semibold">Inventory OS</span>
           </div>
+          <button
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open navigation"
+            className="relative shrink-0 rounded-md border border-border px-3 py-1.5 text-sm"
+          >
+            ☰
+            {openAlerts > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-bold text-background">
+                {openAlerts}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-surface px-4 py-4 sm:px-6 md:flex md:flex-wrap md:gap-4">
+          <div className="min-w-0 md:flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Page title</p>
+            <h1 className="truncate font-display text-xl font-semibold leading-tight sm:text-2xl">{meta.title}</h1>
+            <p className="truncate text-xs text-muted-foreground">{meta.subtitle}</p>
+          </div>
+          <LiveClock />
           {showSearch && (
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search…"
-              className="w-56 rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary"
+              className="col-span-2 w-full rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary md:order-none md:col-span-1 md:w-56"
             />
           )}
-          <LiveClock />
         </header>
 
-        <main className="flex-1 px-6 py-6">
+        <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6">
           {tab === "overview" && (
             <OverviewPage query={query} alerts={alerts} onAck={id => setAcked(a => [...a, id])} />
           )}
@@ -78,16 +128,17 @@ function Dashboard() {
 
 /* ------------------------------- Sidebar -------------------------------- */
 
-function SideNav({ tab, setTab, openAlerts }: { tab: Tab; setTab: (t: Tab) => void; openAlerts: number }) {
-  const items: { key: Tab; label: string }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "inventory", label: "Inventory" },
-    { key: "batches", label: "Batches" },
-    { key: "alerts", label: "Alerts" },
-  ];
+function SideNav({ tab, setTab, openAlerts, mobile = false }: { tab: Tab; setTab: (t: Tab) => void; openAlerts: number; mobile?: boolean }) {
+  const items = NAV_ITEMS;
   const me = users[0];
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
+    <aside
+      className={
+        mobile
+          ? "flex h-full w-full flex-col border-r border-border bg-surface"
+          : "hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex"
+      }
+    >
       <div className="px-5 py-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Brand / Logo mark</p>
         <div className="mt-2 flex items-center gap-2">
@@ -210,7 +261,7 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
                         <span className="text-muted-foreground">· {titleCase(tx.channel)}</span>
                       </span>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(tx.timestamp)}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground"><TimeAgo iso={tx.timestamp} /></span>
                   </li>
                 );
               })}
@@ -287,7 +338,8 @@ function InventoryPage({ query }: { query: string }) {
           ))}
         </div>
 
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
             <tr className="border-b border-border">
               <Th>SKU</Th><Th>Product</Th><Th>Class</Th><Th>Stock Level</Th>
@@ -324,6 +376,7 @@ function InventoryPage({ query }: { query: string }) {
             })}
           </tbody>
         </table>
+        </div>
         <p className="px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
           Stock-level bar: filled = qty vs. reorder point · status pill: OK / WATCH / REORDER
         </p>
@@ -356,7 +409,8 @@ function BatchesPage() {
         Batch tracking panel — one row per received lot
       </p>
       <div className="card-surface overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
             <tr className="border-b border-border">
               <Th>Batch ID</Th><Th>SKU</Th><Th>Qty Remaining</Th><Th>Received</Th>
@@ -399,6 +453,7 @@ function BatchesPage() {
             })}
           </tbody>
         </table>
+        </div>
         <p className="px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
           Days-left countdown drives the expiry markdown flag · pick-order badge #1 = oldest unexpired lot
         </p>
@@ -412,7 +467,7 @@ function BatchesPage() {
 function AlertsPage({ alerts, onAck }: { alerts: Alert[]; onAck: (id: string) => void }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
           Alert list panel — full history, not just top 3
         </p>
@@ -461,7 +516,7 @@ function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id
           <p className="text-xs text-muted-foreground">{alert.message}</p>
           <div className="mt-1.5 flex items-center gap-2">
             <span className="rounded-full border border-border px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{tag}</span>
-            <span className="text-[10px] text-muted-foreground">{timeAgo(alert.createdAt)}</span>
+            <span className="text-[10px] text-muted-foreground"><TimeAgo iso={alert.createdAt} /></span>
           </div>
         </div>
       </div>
@@ -480,6 +535,12 @@ function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id
 function daysLeft(dateISO?: string): number | null {
   if (!dateISO) return null;
   return Math.ceil((new Date(dateISO).getTime() - Date.now()) / 86400000);
+}
+
+function TimeAgo({ iso }: { iso: string }) {
+  const [label, setLabel] = useState("");
+  useEffect(() => setLabel(timeAgo(iso)), [iso]);
+  return <>{label || "—"}</>;
 }
 
 function timeAgo(iso: string): string {
