@@ -467,7 +467,7 @@ function BatchesPage() {
 function AlertsPage({ alerts, onAck }: { alerts: Alert[]; onAck: (id: string) => void }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
           Alert list panel — full history, not just top 3
         </p>
