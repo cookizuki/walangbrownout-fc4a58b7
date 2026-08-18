@@ -261,7 +261,7 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
                         <span className="text-muted-foreground">· {titleCase(tx.channel)}</span>
                       </span>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(tx.timestamp)}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground"><TimeAgo iso={tx.timestamp} /></span>
                   </li>
                 );
               })}
@@ -338,7 +338,8 @@ function InventoryPage({ query }: { query: string }) {
           ))}
         </div>
 
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
             <tr className="border-b border-border">
               <Th>SKU</Th><Th>Product</Th><Th>Class</Th><Th>Stock Level</Th>
@@ -375,6 +376,7 @@ function InventoryPage({ query }: { query: string }) {
             })}
           </tbody>
         </table>
+        </div>
         <p className="px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
           Stock-level bar: filled = qty vs. reorder point · status pill: OK / WATCH / REORDER
         </p>
@@ -407,7 +409,8 @@ function BatchesPage() {
         Batch tracking panel — one row per received lot
       </p>
       <div className="card-surface overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
             <tr className="border-b border-border">
               <Th>Batch ID</Th><Th>SKU</Th><Th>Qty Remaining</Th><Th>Received</Th>
@@ -450,6 +453,7 @@ function BatchesPage() {
             })}
           </tbody>
         </table>
+        </div>
         <p className="px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
           Days-left countdown drives the expiry markdown flag · pick-order badge #1 = oldest unexpired lot
         </p>
@@ -512,7 +516,7 @@ function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id
           <p className="text-xs text-muted-foreground">{alert.message}</p>
           <div className="mt-1.5 flex items-center gap-2">
             <span className="rounded-full border border-border px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{tag}</span>
-            <span className="text-[10px] text-muted-foreground">{timeAgo(alert.createdAt)}</span>
+            <span className="text-[10px] text-muted-foreground"><TimeAgo iso={alert.createdAt} /></span>
           </div>
         </div>
       </div>
@@ -531,6 +535,12 @@ function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id
 function daysLeft(dateISO?: string): number | null {
   if (!dateISO) return null;
   return Math.ceil((new Date(dateISO).getTime() - Date.now()) / 86400000);
+}
+
+function TimeAgo({ iso }: { iso: string }) {
+  const [label, setLabel] = useState("");
+  useEffect(() => setLabel(timeAgo(iso)), [iso]);
+  return <>{label || "—"}</>;
 }
 
 function timeAgo(iso: string): string {
