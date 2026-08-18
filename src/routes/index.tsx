@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  batches, deriveAlerts, fifoOrder, locations, onHand, products,
-  ropSeasonal, ropStandard, transactions, users,
-  type ABC, type Alert, type AlertType,
+  batches, cycleCounts, deriveAlerts, fifoOrder, locations, onHand, pickTasks, products,
+  purchaseOrders, receivingLines, ropSeasonal, ropStandard, suppliers, transactions,
+  money, type ABC, type Alert, type AlertType,
 } from "@/lib/inventory-data";
+import { roleLabel, useSession, type Role } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -20,32 +21,58 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-type Tab = "overview" | "inventory" | "batches" | "alerts";
+type Tab =
+  | "overview" | "inventory" | "batches" | "alerts"
+  | "myday" | "counts" | "reorder"
+  | "picks" | "receiving";
 
 const PAGE_META: Record<Tab, { title: string; subtitle: string }> = {
   overview: { title: "Overview", subtitle: "Page subtitle — real-time system status" },
   inventory: { title: "Inventory", subtitle: "All tracked SKUs, live stock levels" },
   batches: { title: "Batches", subtitle: "FIFO-ordered lots and expiry tracking" },
   alerts: { title: "Alerts", subtitle: "Reorder and expiry notifications" },
+  myday: { title: "My Day", subtitle: "Your assigned work for today" },
+  counts: { title: "Stock Counts", subtitle: "Cycle counts and variance logging" },
+  reorder: { title: "Reorder Review", subtitle: "ROP breaches queued for purchasing" },
+  picks: { title: "Pick Tasks", subtitle: "FIFO-enforced picking queue" },
+  receiving: { title: "Receiving", subtitle: "Inbound POs, putaway and location" },
 };
 
-const NAV_ITEMS: { key: Tab; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "inventory", label: "Inventory" },
-  { key: "batches", label: "Batches" },
-  { key: "alerts", label: "Alerts" },
-];
+const ROLE_NAV: Record<Role, Tab[]> = {
+  ADMIN: ["overview", "inventory", "batches", "alerts"],
+  INVENTORY_STAFF: ["myday", "counts", "inventory", "reorder"],
+  WAREHOUSE_STAFF: ["myday", "picks", "receiving", "batches"],
+};
 
 function Dashboard() {
+  const navigate = useNavigate();
+  const { account, ready, signOut } = useSession();
   const [tab, setTab] = useState<Tab>("overview");
   const [query, setQuery] = useState("");
   const [acked, setAcked] = useState<string[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    if (ready && !account) navigate({ to: "/login", replace: true });
+  }, [ready, account, navigate]);
+
+  useEffect(() => {
+    if (account) setTab(ROLE_NAV[account.role][0]!);
+  }, [account?.role]);
+
   const allAlerts = useMemo(deriveAlerts, []);
   const alerts = allAlerts.filter(a => !acked.includes(a.id));
   const openAlerts = alerts.length;
 
+  if (!ready || !account) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-muted/40 text-sm text-muted-foreground">
+        Loading your workspace…
+      </div>
+    );
+  }
+
+  const navTabs = ROLE_NAV[account.role];
   const meta = PAGE_META[tab];
   const showSearch = tab === "overview" || tab === "inventory";
 
@@ -54,9 +81,26 @@ function Dashboard() {
     setMenuOpen(false);
   };
 
+  const handleSignOut = () => {
+    signOut();
+    navigate({ to: "/login", replace: true });
+  };
+
+  const nav = (
+    <SideNav
+      tab={tab}
+      setTab={select}
+      openAlerts={openAlerts}
+      tabs={navTabs}
+      name={account.name}
+      role={roleLabel(account.role)}
+      onSignOut={handleSignOut}
+    />
+  );
+
   return (
     <div className="flex min-h-screen bg-muted/40">
-      <SideNav tab={tab} setTab={select} openAlerts={openAlerts} />
+      {nav}
 
       {menuOpen && (
         <div
@@ -67,7 +111,16 @@ function Dashboard() {
       )}
       {menuOpen && (
         <div className="fixed inset-y-0 left-0 z-50 w-64 max-w-[80vw] md:hidden">
-          <SideNav tab={tab} setTab={select} openAlerts={openAlerts} mobile />
+          <SideNav
+            tab={tab}
+            setTab={select}
+            openAlerts={openAlerts}
+            tabs={navTabs}
+            name={account.name}
+            role={roleLabel(account.role)}
+            onSignOut={handleSignOut}
+            mobile
+          />
         </div>
       )}
 
@@ -98,7 +151,9 @@ function Dashboard() {
 
         <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-surface px-4 py-4 sm:px-6 md:flex md:flex-wrap md:gap-4">
           <div className="min-w-0 md:flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Page title</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              {roleLabel(account.role)}
+            </p>
             <h1 className="truncate font-display text-xl font-semibold leading-tight sm:text-2xl">{meta.title}</h1>
             <p className="truncate text-xs text-muted-foreground">{meta.subtitle}</p>
           </div>
@@ -120,11 +175,17 @@ function Dashboard() {
           {tab === "inventory" && <InventoryPage query={query} />}
           {tab === "batches" && <BatchesPage />}
           {tab === "alerts" && <AlertsPage alerts={alerts} onAck={id => setAcked(a => [...a, id])} />}
+          {tab === "myday" && <MyDayPage role={account.role} name={account.name} alerts={alerts} />}
+          {tab === "counts" && <StockCountsPage />}
+          {tab === "reorder" && <ReorderReviewPage />}
+          {tab === "picks" && <PickTasksPage />}
+          {tab === "receiving" && <ReceivingPage />}
         </main>
       </div>
     </div>
   );
 }
+
 
 /* ------------------------------- Sidebar -------------------------------- */
 
