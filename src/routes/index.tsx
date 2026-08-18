@@ -73,15 +73,6 @@ function Dashboard() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3 md:hidden">
-          <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
-              style={{ background: "var(--gradient-hero)" }}
-            >
-              WB
-            </span>
-            <span className="truncate font-semibold">Inventory OS</span>
-          </div>
           <button
             onClick={() => setMenuOpen(true)}
             aria-label="Open navigation"
@@ -94,6 +85,15 @@ function Dashboard() {
               </span>
             )}
           </button>
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            <span className="truncate font-semibold">Inventory OS</span>
+            <span
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
+              style={{ background: "var(--gradient-hero)" }}
+            >
+              WB
+            </span>
+          </div>
         </div>
 
         <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-surface px-4 py-4 sm:px-6 md:flex md:flex-wrap md:gap-4">
