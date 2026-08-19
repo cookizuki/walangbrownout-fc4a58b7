@@ -9,9 +9,14 @@ export interface Account {
   id: string;
   name: string;
   email: string;
+  username?: string;
+  password: string;
   role: Role;
   createdAt: string;
 }
+
+/** Shared password for the seeded demo accounts. */
+export const DEMO_PASSWORD = "walangbrownout";
 
 export const ROLES: { key: Role; label: string; blurb: string; scope: string[] }[] = [
   {
@@ -41,10 +46,10 @@ const SESSION_KEY = "wb.session";
 const EVT = "wb-auth";
 
 const SEED: Account[] = [
-  { id: "u-1", name: "Kim Maturan", email: "kim@walangbrownout.ph", role: "ADMIN", createdAt: "2026-01-04T08:00:00" },
-  { id: "u-2", name: "Nick Merilles", email: "nick@walangbrownout.ph", role: "ADMIN", createdAt: "2026-01-04T08:05:00" },
-  { id: "u-3", name: "Lizle Ocariza", email: "lizle@walangbrownout.ph", role: "INVENTORY_STAFF", createdAt: "2026-02-11T09:20:00" },
-  { id: "u-4", name: "Nhimfa Pacao", email: "nhimfa@walangbrownout.ph", role: "WAREHOUSE_STAFF", createdAt: "2026-02-11T09:24:00" },
+  { id: "u-1", name: "Kim Maturan", email: "kim@walangbrownout.ph", username: "kmaturan", password: DEMO_PASSWORD, role: "ADMIN", createdAt: "2026-01-04T08:00:00" },
+  { id: "u-2", name: "Nick Merilles", email: "nick@walangbrownout.ph", username: "nmerilles", password: DEMO_PASSWORD, role: "ADMIN", createdAt: "2026-01-04T08:05:00" },
+  { id: "u-3", name: "Lizle Ocariza", email: "lizle@walangbrownout.ph", username: "locariza", password: DEMO_PASSWORD, role: "INVENTORY_STAFF", createdAt: "2026-02-11T09:20:00" },
+  { id: "u-4", name: "Nhimfa Pacao", email: "nhimfa@walangbrownout.ph", username: "npacao", password: DEMO_PASSWORD, role: "WAREHOUSE_STAFF", createdAt: "2026-02-11T09:24:00" },
 ];
 
 function read<T>(key: string, fallback: T): T {
@@ -67,12 +72,14 @@ export function listAccounts(): Account[] {
   return SEED;
 }
 
-export function createAccount(input: { name: string; email: string; role: Role }): Account {
+export function createAccount(input: { name: string; email: string; username?: string; password: string; role: Role }): Account {
   const accounts = listAccounts();
   const acct: Account = {
     id: `u-${Date.now()}`,
     name: input.name.trim(),
     email: input.email.trim().toLowerCase(),
+    username: input.username?.trim(),
+    password: input.password,
     role: input.role,
     createdAt: new Date().toISOString(),
   };
@@ -126,4 +133,10 @@ export function useSession() {
 export function readRawSessionId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(SESSION_KEY);
+}
+
+/** Credential check for the demo login form. Returns the account or null. */
+export function authenticate(email: string, password: string): Account | null {
+  const e = email.trim().toLowerCase();
+  return listAccounts().find(a => a.email === e && a.password === password) ?? null;
 }
