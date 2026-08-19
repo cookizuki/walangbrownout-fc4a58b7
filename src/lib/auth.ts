@@ -134,3 +134,9 @@ export function readRawSessionId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(SESSION_KEY);
 }
+
+/** Credential check for the demo login form. Returns the account or null. */
+export function authenticate(email: string, password: string): Account | null {
+  const e = email.trim().toLowerCase();
+  return listAccounts().find(a => a.email === e && a.password === password) ?? null;
+}
