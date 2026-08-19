@@ -9,9 +9,14 @@ export interface Account {
   id: string;
   name: string;
   email: string;
+  username?: string;
+  password: string;
   role: Role;
   createdAt: string;
 }
+
+/** Shared password for the seeded demo accounts. */
+export const DEMO_PASSWORD = "walangbrownout";
 
 export const ROLES: { key: Role; label: string; blurb: string; scope: string[] }[] = [
   {
