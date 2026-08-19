@@ -72,12 +72,14 @@ export function listAccounts(): Account[] {
   return SEED;
 }
 
-export function createAccount(input: { name: string; email: string; role: Role }): Account {
+export function createAccount(input: { name: string; email: string; username?: string; password: string; role: Role }): Account {
   const accounts = listAccounts();
   const acct: Account = {
     id: `u-${Date.now()}`,
     name: input.name.trim(),
     email: input.email.trim().toLowerCase(),
+    username: input.username?.trim(),
+    password: input.password,
     role: input.role,
     createdAt: new Date().toISOString(),
   };
