@@ -46,10 +46,10 @@ const SESSION_KEY = "wb.session";
 const EVT = "wb-auth";
 
 const SEED: Account[] = [
-  { id: "u-1", name: "Kim Maturan", email: "kim@walangbrownout.ph", role: "ADMIN", createdAt: "2026-01-04T08:00:00" },
-  { id: "u-2", name: "Nick Merilles", email: "nick@walangbrownout.ph", role: "ADMIN", createdAt: "2026-01-04T08:05:00" },
-  { id: "u-3", name: "Lizle Ocariza", email: "lizle@walangbrownout.ph", role: "INVENTORY_STAFF", createdAt: "2026-02-11T09:20:00" },
-  { id: "u-4", name: "Nhimfa Pacao", email: "nhimfa@walangbrownout.ph", role: "WAREHOUSE_STAFF", createdAt: "2026-02-11T09:24:00" },
+  { id: "u-1", name: "Kim Maturan", email: "kim@walangbrownout.ph", username: "kmaturan", password: DEMO_PASSWORD, role: "ADMIN", createdAt: "2026-01-04T08:00:00" },
+  { id: "u-2", name: "Nick Merilles", email: "nick@walangbrownout.ph", username: "nmerilles", password: DEMO_PASSWORD, role: "ADMIN", createdAt: "2026-01-04T08:05:00" },
+  { id: "u-3", name: "Lizle Ocariza", email: "lizle@walangbrownout.ph", username: "locariza", password: DEMO_PASSWORD, role: "INVENTORY_STAFF", createdAt: "2026-02-11T09:20:00" },
+  { id: "u-4", name: "Nhimfa Pacao", email: "nhimfa@walangbrownout.ph", username: "npacao", password: DEMO_PASSWORD, role: "WAREHOUSE_STAFF", createdAt: "2026-02-11T09:24:00" },
 ];
 
 function read<T>(key: string, fallback: T): T {
