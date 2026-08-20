@@ -444,13 +444,13 @@ function InventoryPage({ query }: { query: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-dashed divide-border">
-            {rows.map(p => {
+            {rows.map((p, i) => {
               const qty = onHand(p.sku);
               const rop = p.seasonalFlag ? ropSeasonal(p) : ropStandard(p);
               const ratio = Math.min(qty / Math.max(rop, 1), 1.5);
               const status = qty <= rop ? "REORDER" : ratio < 1.35 ? "WATCH" : "OK";
               return (
-                <tr key={p.sku} className="hover:bg-muted/40">
+                <AnimatedRow key={`${pill}-${p.sku}`} delay={i * 50}>
                   <Td className="font-mono text-xs">{p.sku}</Td>
                   <Td className="font-medium">{p.name}</Td>
                   <Td>
@@ -459,19 +459,19 @@ function InventoryPage({ query }: { query: string }) {
                     </span>
                   </Td>
                   <Td>
-                    <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full ${status === "REORDER" ? "bg-danger" : status === "WATCH" ? "bg-warning" : "bg-success"}`}
-                        style={{ width: `${Math.min((ratio / 1.5) * 100, 100)}%` }}
-                      />
-                    </div>
+                    <StockBar
+                      percent={Math.min((ratio / 1.5) * 100, 100)}
+                      status={status}
+                      delay={i * 50}
+                    />
                   </Td>
                   <Td className="font-mono text-xs">{qty} / {rop}</Td>
                   <Td><StatusPill status={status} /></Td>
-                </tr>
+                </AnimatedRow>
               );
             })}
           </tbody>
+
         </table>
         </div>
         <p className="px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
