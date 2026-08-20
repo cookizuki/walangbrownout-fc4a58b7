@@ -145,12 +145,12 @@ function Dashboard() {
           </button>
           <div className="flex min-w-0 items-center justify-end gap-2">
             <span className="truncate font-semibold">Inventory OS</span>
-            <span
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
-              style={{ background: "var(--gradient-hero)" }}
-            >
-              WB
-            </span>
+            <img
+              src={wbLogo.url}
+              alt="WalangBrownout logo"
+              className="h-7 w-7 shrink-0 rounded-md object-cover"
+            />
+
           </div>
         </div>
 
