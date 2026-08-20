@@ -1,11 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   batches, cycleCounts, deriveAlerts, fifoOrder, locations, onHand, pickTasks, products,
   purchaseOrders, receivingLines, ropSeasonal, ropStandard, suppliers, transactions,
   money, type ABC, type Alert, type AlertType,
 } from "@/lib/inventory-data";
 import { roleLabel, useSession, type Role } from "@/lib/auth";
+import { CountUp } from "@/components/CountUp";
+import { AnimatedItem } from "@/components/AnimatedList";
+import { GlareHover } from "@/components/GlareHover";
+import wbLogo from "@/assets/wb-logo.jpg.asset.json";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -140,12 +145,12 @@ function Dashboard() {
           </button>
           <div className="flex min-w-0 items-center justify-end gap-2">
             <span className="truncate font-semibold">Inventory OS</span>
-            <span
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
-              style={{ background: "var(--gradient-hero)" }}
-            >
-              WB
-            </span>
+            <img
+              src={wbLogo.url}
+              alt="WalangBrownout logo"
+              className="h-7 w-7 shrink-0 rounded-md object-cover"
+            />
+
           </div>
         </div>
 
@@ -206,12 +211,12 @@ function SideNav({
       <div className="px-5 py-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Brand / Logo mark</p>
         <div className="mt-2 flex items-center gap-2">
-          <span
-            className="grid h-7 w-7 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
-            style={{ background: "var(--gradient-hero)" }}
-          >
-            WB
-          </span>
+          <img
+            src={wbLogo.url}
+            alt="WalangBrownout logo"
+            className="h-7 w-7 rounded-md object-cover"
+          />
+
           <span className="font-semibold">Inventory OS</span>
         </div>
       </div>
@@ -301,10 +306,10 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
     <div className="space-y-5">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">KPI summary cards</p>
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi value={String(products.length)} label="Active SKUs Tracked" />
-        <Kpi value={String(alerts.length)} label="Open Alerts" />
-        <Kpi value={String(nearExpiry)} label="Batches Nearing Expiry" />
-        <Kpi value="0s" label="Sync Delay" />
+        <Kpi value={products.length} label="Active SKUs Tracked" />
+        <Kpi value={alerts.length} label="Open Alerts" />
+        <Kpi value={nearExpiry} label="Batches Nearing Expiry" />
+        <Kpi value={0} suffix="s" label="Sync Delay" />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-5">
@@ -320,10 +325,14 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
               </span>
             </div>
             <ul className="divide-y divide-dashed divide-border">
-              {feed.map(tx => {
+              {feed.map((tx, i) => {
                 const p = products.find(pp => pp.sku === tx.sku);
                 return (
-                  <li key={tx.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                  <AnimatedItem
+                    key={tx.id}
+                    delay={i * 60}
+                    className="flex items-center justify-between gap-3 px-5 py-3 text-sm transition-colors hover:bg-muted/40"
+                  >
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="h-3 w-3 shrink-0 rounded-full border border-border" />
                       <span className="truncate">
@@ -335,7 +344,7 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
                       </span>
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground"><TimeAgo iso={tx.timestamp} /></span>
-                  </li>
+                  </AnimatedItem>
                 );
               })}
               {feed.length === 0 && (
@@ -349,17 +358,21 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
           <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Panel — mirrors Alerts screen, top 3
           </p>
-          <div className="card-surface">
+          <div className="card-surface flex h-full flex-col">
             <div className="border-b border-border px-5 py-3">
               <h2 className="text-sm font-semibold">Active Alerts</h2>
             </div>
-            <div className="space-y-3 p-4">
+            <div className="flex flex-1 flex-col gap-3 p-4">
               {alerts.slice(0, 3).map(a => (
                 <AlertCard key={a.id} alert={a} onAck={onAck} compact />
               ))}
-              {alerts.length === 0 && (
-                <p className="py-6 text-center text-sm text-muted-foreground">All clear · nothing to reorder</p>
-              )}
+              <EmptyState
+                label={
+                  alerts.length === 0
+                    ? "All clear · nothing to reorder"
+                    : "No other alerts — you're all caught up"
+                }
+              />
             </div>
           </div>
         </div>
@@ -368,14 +381,25 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
   );
 }
 
-function Kpi({ value, label }: { value: string; label: string }) {
+function EmptyState({ label }: { label: string }) {
   return (
-    <div className="card-surface p-5">
-      <div className="font-display text-3xl font-semibold">{value}</div>
+    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+      {label}
+    </div>
+  );
+}
+
+function Kpi({ value, label, suffix }: { value: number; label: string; suffix?: string }) {
+  return (
+    <div className="card-surface p-5 transition-colors hover:bg-muted/30">
+      <div className="font-display text-3xl font-semibold">
+        <CountUp to={value} suffix={suffix} />
+      </div>
       <div className="mt-1 text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
+
 
 /* ------------------------------ Inventory ------------------------------- */
 
@@ -420,13 +444,13 @@ function InventoryPage({ query }: { query: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-dashed divide-border">
-            {rows.map(p => {
+            {rows.map((p, i) => {
               const qty = onHand(p.sku);
               const rop = p.seasonalFlag ? ropSeasonal(p) : ropStandard(p);
               const ratio = Math.min(qty / Math.max(rop, 1), 1.5);
               const status = qty <= rop ? "REORDER" : ratio < 1.35 ? "WATCH" : "OK";
               return (
-                <tr key={p.sku} className="hover:bg-muted/40">
+                <AnimatedRow key={`${pill}-${p.sku}`} delay={i * 50}>
                   <Td className="font-mono text-xs">{p.sku}</Td>
                   <Td className="font-medium">{p.name}</Td>
                   <Td>
@@ -435,19 +459,19 @@ function InventoryPage({ query }: { query: string }) {
                     </span>
                   </Td>
                   <Td>
-                    <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full ${status === "REORDER" ? "bg-danger" : status === "WATCH" ? "bg-warning" : "bg-success"}`}
-                        style={{ width: `${Math.min((ratio / 1.5) * 100, 100)}%` }}
-                      />
-                    </div>
+                    <StockBar
+                      percent={Math.min((ratio / 1.5) * 100, 100)}
+                      status={status}
+                      delay={i * 50}
+                    />
                   </Td>
                   <Td className="font-mono text-xs">{qty} / {rop}</Td>
                   <Td><StatusPill status={status} /></Td>
-                </tr>
+                </AnimatedRow>
               );
             })}
           </tbody>
+
         </table>
         </div>
         <p className="px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -472,6 +496,44 @@ function StatusPill({ status }: { status: "OK" | "WATCH" | "REORDER" }) {
   );
 }
 
+function AnimatedRow({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setShown(true), delay);
+    return () => window.clearTimeout(t);
+  }, [delay]);
+  return (
+    <tr
+      className={`transition-all duration-300 ease-out hover:bg-muted/50 motion-reduce:transition-none ${
+        shown ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+      }`}
+    >
+      {children}
+    </tr>
+  );
+}
+
+function StockBar({
+  percent, status, delay = 0,
+}: { percent: number; status: "OK" | "WATCH" | "REORDER"; delay?: number }) {
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const t = window.setTimeout(() => setW(percent), delay + 60);
+    return () => window.clearTimeout(t);
+  }, [percent, delay]);
+  return (
+    <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
+      <div
+        className={`h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none ${
+          status === "REORDER" ? "bg-danger" : status === "WATCH" ? "bg-warning" : "bg-success"
+        }`}
+        style={{ width: `${w}%` }}
+      />
+    </div>
+  );
+}
+
+
 /* ------------------------------- Batches -------------------------------- */
 
 function BatchesPage() {
@@ -491,12 +553,12 @@ function BatchesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-dashed divide-border">
-            {rows.map(({ b, idx }) => {
+            {rows.map(({ b, idx }, i) => {
               const d = daysLeft(b.expirationDate);
               const soon = d !== null && d <= 30;
               const loc = locations.find(l => l.id === b.locationId);
               return (
-                <tr key={b.id} className="hover:bg-muted/40">
+                <AnimatedRow key={b.id} delay={i * 50}>
                   <Td className="font-mono text-xs">{b.id}</Td>
                   <Td className="font-mono text-xs">
                     {b.sku} <span className="text-muted-foreground">· {loc?.code}</span>
@@ -510,7 +572,9 @@ function BatchesPage() {
                   <Td>
                     <div className="flex items-center gap-2">
                       {idx === 0 ? (
-                        <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold text-background">#1 NEXT</span>
+                        <GlareHover className="rounded-full">
+                          <span className="block rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold text-background">#1 NEXT</span>
+                        </GlareHover>
                       ) : (
                         <span className="rounded-full border border-border px-2.5 py-1 text-[10px] text-muted-foreground">#{idx + 1}</span>
                       )}
@@ -521,9 +585,10 @@ function BatchesPage() {
                       )}
                     </div>
                   </Td>
-                </tr>
+                </AnimatedRow>
               );
             })}
+
           </tbody>
         </table>
         </div>
@@ -554,17 +619,19 @@ function AlertsPage({ alerts, onAck }: { alerts: Alert[]; onAck: (id: string) =>
           </span>
         </div>
         <ul className="divide-y divide-border">
-          {alerts.map(a => (
-            <li key={a.id} className="px-5 py-4">
+          {alerts.map((a, i) => (
+            <AnimatedItem key={a.id} delay={i * 60} className="px-5 py-4">
               <AlertCard alert={a} onAck={onAck} />
-            </li>
+            </AnimatedItem>
           ))}
-          {alerts.length === 0 && (
-            <li className="px-5 py-12 text-center text-sm text-muted-foreground">
-              Nothing to reorder or expire soon. Enjoy the calm.
-            </li>
-          )}
         </ul>
+        <div className="px-5 pb-5 pt-1">
+          <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            {alerts.length === 0
+              ? "Nothing to reorder or expire soon. Enjoy the calm."
+              : "No other alerts — you're all caught up"}
+          </div>
+        </div>
         <p className="border-t border-border px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
           Alert row — type icon, title (item), detail (threshold math), tag, timestamp
         </p>
@@ -577,9 +644,20 @@ function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id
   const p = products.find(pp => pp.sku === alert.sku);
   const tag = { LOW_STOCK: "STANDARD", SEASONAL_REORDER: "SEASONAL", NEAR_EXPIRY: "FIFO", VARIANCE: "VARIANCE" }[alert.type as AlertType];
   const title = alert.batchId ? `${p?.name} — Batch ${alert.batchId}` : p?.name;
+  const [acking, setAcking] = useState(false);
+
+  const handleAck = () => {
+    if (acking) return;
+    setAcking(true);
+    window.setTimeout(() => onAck(alert.id), 350);
+  };
 
   return (
-    <div className={compact ? "rounded-lg border border-dashed border-border p-3" : "flex items-start justify-between gap-4"}>
+    <div
+      className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${acking ? "opacity-40" : "opacity-100"} ${
+        compact ? "rounded-lg border border-dashed border-border p-3" : "flex items-start justify-between gap-4"
+      }`}
+    >
       <div className="flex min-w-0 items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border bg-muted text-sm font-bold">
           !
@@ -594,14 +672,16 @@ function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id
         </div>
       </div>
       <button
-        onClick={() => onAck(alert.id)}
-        className={`shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted ${compact ? "mt-3 w-full" : ""}`}
+        onClick={handleAck}
+        disabled={acking}
+        className={`shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 ${compact ? "mt-3 w-full" : ""}`}
       >
-        Acknowledge
+        {acking ? "Acknowledged" : "Acknowledge"}
       </button>
     </div>
   );
 }
+
 
 /* ------------------------------- Helpers -------------------------------- */
 
