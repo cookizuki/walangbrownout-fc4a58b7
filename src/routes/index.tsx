@@ -306,10 +306,10 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
     <div className="space-y-5">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">KPI summary cards</p>
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi value={String(products.length)} label="Active SKUs Tracked" />
-        <Kpi value={String(alerts.length)} label="Open Alerts" />
-        <Kpi value={String(nearExpiry)} label="Batches Nearing Expiry" />
-        <Kpi value="0s" label="Sync Delay" />
+        <Kpi value={products.length} label="Active SKUs Tracked" />
+        <Kpi value={alerts.length} label="Open Alerts" />
+        <Kpi value={nearExpiry} label="Batches Nearing Expiry" />
+        <Kpi value={0} suffix="s" label="Sync Delay" />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-5">
@@ -325,10 +325,14 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
               </span>
             </div>
             <ul className="divide-y divide-dashed divide-border">
-              {feed.map(tx => {
+              {feed.map((tx, i) => {
                 const p = products.find(pp => pp.sku === tx.sku);
                 return (
-                  <li key={tx.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                  <AnimatedItem
+                    key={tx.id}
+                    delay={i * 60}
+                    className="flex items-center justify-between gap-3 px-5 py-3 text-sm transition-colors hover:bg-muted/40"
+                  >
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="h-3 w-3 shrink-0 rounded-full border border-border" />
                       <span className="truncate">
@@ -340,7 +344,7 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
                       </span>
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground"><TimeAgo iso={tx.timestamp} /></span>
-                  </li>
+                  </AnimatedItem>
                 );
               })}
               {feed.length === 0 && (
@@ -354,17 +358,21 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
           <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Panel — mirrors Alerts screen, top 3
           </p>
-          <div className="card-surface">
+          <div className="card-surface flex h-full flex-col">
             <div className="border-b border-border px-5 py-3">
               <h2 className="text-sm font-semibold">Active Alerts</h2>
             </div>
-            <div className="space-y-3 p-4">
+            <div className="flex flex-1 flex-col gap-3 p-4">
               {alerts.slice(0, 3).map(a => (
                 <AlertCard key={a.id} alert={a} onAck={onAck} compact />
               ))}
-              {alerts.length === 0 && (
-                <p className="py-6 text-center text-sm text-muted-foreground">All clear · nothing to reorder</p>
-              )}
+              <EmptyState
+                label={
+                  alerts.length === 0
+                    ? "All clear · nothing to reorder"
+                    : "No other alerts — you're all caught up"
+                }
+              />
             </div>
           </div>
         </div>
@@ -373,14 +381,25 @@ function OverviewPage({ query, alerts, onAck }: { query: string; alerts: Alert[]
   );
 }
 
-function Kpi({ value, label }: { value: string; label: string }) {
+function EmptyState({ label }: { label: string }) {
   return (
-    <div className="card-surface p-5">
-      <div className="font-display text-3xl font-semibold">{value}</div>
+    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+      {label}
+    </div>
+  );
+}
+
+function Kpi({ value, label, suffix }: { value: number; label: string; suffix?: string }) {
+  return (
+    <div className="card-surface p-5 transition-colors hover:bg-muted/30">
+      <div className="font-display text-3xl font-semibold">
+        <CountUp to={value} suffix={suffix} />
+      </div>
       <div className="mt-1 text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
+
 
 /* ------------------------------ Inventory ------------------------------- */
 
