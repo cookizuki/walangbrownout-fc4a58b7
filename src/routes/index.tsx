@@ -553,12 +553,12 @@ function BatchesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-dashed divide-border">
-            {rows.map(({ b, idx }) => {
+            {rows.map(({ b, idx }, i) => {
               const d = daysLeft(b.expirationDate);
               const soon = d !== null && d <= 30;
               const loc = locations.find(l => l.id === b.locationId);
               return (
-                <tr key={b.id} className="hover:bg-muted/40">
+                <AnimatedRow key={b.id} delay={i * 50}>
                   <Td className="font-mono text-xs">{b.id}</Td>
                   <Td className="font-mono text-xs">
                     {b.sku} <span className="text-muted-foreground">· {loc?.code}</span>
@@ -572,7 +572,9 @@ function BatchesPage() {
                   <Td>
                     <div className="flex items-center gap-2">
                       {idx === 0 ? (
-                        <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold text-background">#1 NEXT</span>
+                        <GlareHover className="rounded-full">
+                          <span className="block rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold text-background">#1 NEXT</span>
+                        </GlareHover>
                       ) : (
                         <span className="rounded-full border border-border px-2.5 py-1 text-[10px] text-muted-foreground">#{idx + 1}</span>
                       )}
@@ -583,9 +585,10 @@ function BatchesPage() {
                       )}
                     </div>
                   </Td>
-                </tr>
+                </AnimatedRow>
               );
             })}
+
           </tbody>
         </table>
         </div>
