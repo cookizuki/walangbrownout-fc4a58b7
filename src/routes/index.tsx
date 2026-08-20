@@ -496,6 +496,44 @@ function StatusPill({ status }: { status: "OK" | "WATCH" | "REORDER" }) {
   );
 }
 
+function AnimatedRow({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setShown(true), delay);
+    return () => window.clearTimeout(t);
+  }, [delay]);
+  return (
+    <tr
+      className={`transition-all duration-300 ease-out hover:bg-muted/50 motion-reduce:transition-none ${
+        shown ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+      }`}
+    >
+      {children}
+    </tr>
+  );
+}
+
+function StockBar({
+  percent, status, delay = 0,
+}: { percent: number; status: "OK" | "WATCH" | "REORDER"; delay?: number }) {
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const t = window.setTimeout(() => setW(percent), delay + 60);
+    return () => window.clearTimeout(t);
+  }, [percent, delay]);
+  return (
+    <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
+      <div
+        className={`h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none ${
+          status === "REORDER" ? "bg-danger" : status === "WATCH" ? "bg-warning" : "bg-success"
+        }`}
+        style={{ width: `${w}%` }}
+      />
+    </div>
+  );
+}
+
+
 /* ------------------------------- Batches -------------------------------- */
 
 function BatchesPage() {
