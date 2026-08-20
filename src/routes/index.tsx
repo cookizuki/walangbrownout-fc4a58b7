@@ -6,6 +6,11 @@ import {
   money, type ABC, type Alert, type AlertType,
 } from "@/lib/inventory-data";
 import { roleLabel, useSession, type Role } from "@/lib/auth";
+import { CountUp } from "@/components/CountUp";
+import { AnimatedItem } from "@/components/AnimatedList";
+import { GlareHover } from "@/components/GlareHover";
+import wbLogo from "@/assets/wb-logo.jpg.asset.json";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
