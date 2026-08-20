@@ -619,17 +619,19 @@ function AlertsPage({ alerts, onAck }: { alerts: Alert[]; onAck: (id: string) =>
           </span>
         </div>
         <ul className="divide-y divide-border">
-          {alerts.map(a => (
-            <li key={a.id} className="px-5 py-4">
+          {alerts.map((a, i) => (
+            <AnimatedItem key={a.id} delay={i * 60} className="px-5 py-4">
               <AlertCard alert={a} onAck={onAck} />
-            </li>
+            </AnimatedItem>
           ))}
-          {alerts.length === 0 && (
-            <li className="px-5 py-12 text-center text-sm text-muted-foreground">
-              Nothing to reorder or expire soon. Enjoy the calm.
-            </li>
-          )}
         </ul>
+        <div className="px-5 pb-5 pt-1">
+          <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            {alerts.length === 0
+              ? "Nothing to reorder or expire soon. Enjoy the calm."
+              : "No other alerts — you're all caught up"}
+          </div>
+        </div>
         <p className="border-t border-border px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground">
           Alert row — type icon, title (item), detail (threshold math), tag, timestamp
         </p>
@@ -642,9 +644,20 @@ function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id
   const p = products.find(pp => pp.sku === alert.sku);
   const tag = { LOW_STOCK: "STANDARD", SEASONAL_REORDER: "SEASONAL", NEAR_EXPIRY: "FIFO", VARIANCE: "VARIANCE" }[alert.type as AlertType];
   const title = alert.batchId ? `${p?.name} — Batch ${alert.batchId}` : p?.name;
+  const [acking, setAcking] = useState(false);
+
+  const handleAck = () => {
+    if (acking) return;
+    setAcking(true);
+    window.setTimeout(() => onAck(alert.id), 350);
+  };
 
   return (
-    <div className={compact ? "rounded-lg border border-dashed border-border p-3" : "flex items-start justify-between gap-4"}>
+    <div
+      className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${acking ? "opacity-40" : "opacity-100"} ${
+        compact ? "rounded-lg border border-dashed border-border p-3" : "flex items-start justify-between gap-4"
+      }`}
+    >
       <div className="flex min-w-0 items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border bg-muted text-sm font-bold">
           !
@@ -659,14 +672,16 @@ function AlertCard({ alert, onAck, compact = false }: { alert: Alert; onAck: (id
         </div>
       </div>
       <button
-        onClick={() => onAck(alert.id)}
-        className={`shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted ${compact ? "mt-3 w-full" : ""}`}
+        onClick={handleAck}
+        disabled={acking}
+        className={`shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 ${compact ? "mt-3 w-full" : ""}`}
       >
-        Acknowledge
+        {acking ? "Acknowledged" : "Acknowledge"}
       </button>
     </div>
   );
 }
+
 
 /* ------------------------------- Helpers -------------------------------- */
 
