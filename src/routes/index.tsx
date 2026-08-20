@@ -496,7 +496,7 @@ function StatusPill({ status }: { status: "OK" | "WATCH" | "REORDER" }) {
   );
 }
 
-function AnimatedRow({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+function AnimatedRow({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     const t = window.setTimeout(() => setShown(true), delay);
