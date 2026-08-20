@@ -211,12 +211,12 @@ function SideNav({
       <div className="px-5 py-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Brand / Logo mark</p>
         <div className="mt-2 flex items-center gap-2">
-          <span
-            className="grid h-7 w-7 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
-            style={{ background: "var(--gradient-hero)" }}
-          >
-            WB
-          </span>
+          <img
+            src={wbLogo.url}
+            alt="WalangBrownout logo"
+            className="h-7 w-7 rounded-md object-cover"
+          />
+
           <span className="font-semibold">Inventory OS</span>
         </div>
       </div>
