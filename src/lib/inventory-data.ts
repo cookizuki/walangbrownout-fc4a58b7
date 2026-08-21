@@ -285,3 +285,20 @@ export const purchaseOrders: PurchaseOrder[] = [
   { id: "PO-3321", supplierId: 2, sku: "APU-100", quantity: 200, unitCost: 1250, status: "RECEIVED", createdAt: "2026-08-08T14:30:00" },
   { id: "PO-3322", supplierId: 3, sku: "THM-201", quantity: 60, unitCost: 4800, status: "APPROVED", createdAt: "2026-08-15T11:10:00" },
 ];
+
+/** Purchase orders awaiting Administrator / Purchasing Manager approval. */
+export interface PendingPO {
+  id: string;
+  supplier: string;
+  sku: string;
+  itemLabel: string;
+  quantity: number;
+  totalCost: number;
+  requestedBy: string;
+  requestedAt: string;
+}
+
+export const pendingApprovals: PendingPO[] = [
+  { id: "PO-2041", supplier: "Cool Air Distributors Inc.", sku: "ACU-014", itemLabel: "Portable AC Unit", quantity: 800, totalCost: 3840000, requestedBy: "Kim Maturan", requestedAt: "2026-07-18" },
+  { id: "PO-2042", supplier: "ThermoSense Supply Co.", sku: "THM-201", itemLabel: "Smart Thermostat", quantity: 150, totalCost: 300000, requestedBy: "Kim Maturan", requestedAt: "2026-07-19" },
+];
