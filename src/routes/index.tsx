@@ -764,17 +764,17 @@ function MyDayPage({ role, name, alerts }: { role: Role; name: string; alerts: A
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isWarehouse ? (
           <>
-            <Kpi value={String(openPicks.length)} label="Open Pick Tasks" />
-            <Kpi value={String(openPicks.filter(t => t.priority === "HIGH").length)} label="High Priority" />
-            <Kpi value={String(inbound.length)} label="Inbound Deliveries" />
-            <Kpi value={String(batches.filter(b => { const d = daysLeft(b.expirationDate); return d !== null && d <= 30; }).length)} label="Lots Expiring ≤30d" />
+            <Kpi value={openPicks.length} label="Open Pick Tasks" />
+            <Kpi value={openPicks.filter(t => t.priority === "HIGH").length} label="High Priority" />
+            <Kpi value={inbound.length} label="Inbound Deliveries" />
+            <Kpi value={batches.filter(b => { const d = daysLeft(b.expirationDate); return d !== null && d <= 30; }).length} label="Lots Expiring ≤30d" />
           </>
         ) : (
           <>
-            <Kpi value={String(openCounts.length)} label="Counts Due Today" />
-            <Kpi value={String(variances.length)} label="Variances Logged" />
-            <Kpi value={String(alerts.filter(a => a.type !== "NEAR_EXPIRY").length)} label="ROP Breaches" />
-            <Kpi value={String(products.length)} label="SKUs In Scope" />
+            <Kpi value={openCounts.length} label="Counts Due Today" />
+            <Kpi value={variances.length} label="Variances Logged" />
+            <Kpi value={alerts.filter(a => a.type !== "NEAR_EXPIRY").length} label="ROP Breaches" />
+            <Kpi value={products.length} label="SKUs In Scope" />
           </>
         )}
       </section>
