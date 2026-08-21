@@ -209,8 +209,7 @@ function SideNav({
       }
     >
       <div className="px-5 py-5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Brand / Logo mark</p>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <img
             src={wbLogo.url}
             alt="WalangBrownout logo"
@@ -220,6 +219,7 @@ function SideNav({
           <span className="font-semibold">Inventory OS</span>
         </div>
       </div>
+
 
       <p className="px-5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Main navigation</p>
       <nav className="mt-2 flex flex-col gap-1 px-3">
