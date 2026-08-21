@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { authenticate, listAccounts, roleLabel, ROLES, signIn, DEMO_PASSWORD, type Account, type Role } from "@/lib/auth";
 import { FadeContent } from "@/components/FadeContent";
+import wbLogo from "@/assets/wb-logo.jpg.asset.json";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -56,12 +57,11 @@ function LoginPage() {
       <div className="mx-auto w-full max-w-6xl">
         <FadeContent>
           <div className="flex items-center gap-2">
-            <span
-              className="grid h-8 w-8 place-items-center rounded-md text-[11px] font-bold text-primary-foreground"
-              style={{ background: "var(--gradient-hero)" }}
-            >
-              WB
-            </span>
+            <img
+              src={wbLogo.url}
+              alt="WalangBrownout logo"
+              className="h-8 w-8 rounded-md object-contain"
+            />
             <span className="font-semibold">WalangBrownout · Inventory OS</span>
           </div>
         </FadeContent>
