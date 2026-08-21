@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { authenticate, listAccounts, roleLabel, ROLES, signIn, DEMO_PASSWORD, type Account, type Role } from "@/lib/auth";
 import { FadeContent } from "@/components/FadeContent";
+import wbLogo from "@/assets/wb-logo.jpg.asset.json";
 
 export const Route = createFileRoute("/login")({
   head: () => ({

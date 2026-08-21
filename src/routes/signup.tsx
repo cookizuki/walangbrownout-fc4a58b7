@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { createAccount, emailTaken, ROLES, signIn, type Role } from "@/lib/auth";
 import { FadeContent } from "@/components/FadeContent";
+import wbLogo from "@/assets/wb-logo.jpg.asset.json";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
