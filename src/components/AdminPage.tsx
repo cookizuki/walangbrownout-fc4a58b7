@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatedItem } from "@/components/AnimatedList";
 import { FadeContent } from "@/components/FadeContent";
 import { money, pendingApprovals, type PendingPO } from "@/lib/inventory-data";
@@ -66,11 +66,7 @@ export function AdminPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {accounts.map((a, i) => (
-                  <tr
-                    key={a.id}
-                    className="transition-colors hover:bg-muted/50"
-                    style={{ animation: `wb-row-in 300ms ease-out ${i * 60}ms both` }}
-                  >
+                  <AnimatedRow key={a.id} delay={i * 60}>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
                         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-bold">
@@ -96,7 +92,7 @@ export function AdminPage() {
                         Edit
                       </button>
                     </td>
-                  </tr>
+                  </AnimatedRow>
                 ))}
               </tbody>
             </table>
@@ -249,5 +245,22 @@ function AddUserForm({ onCreate }: { onCreate: (a: Account) => void }) {
         Create user
       </button>
     </form>
+  );
+}
+
+function AnimatedRow({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setShown(true), delay);
+    return () => window.clearTimeout(t);
+  }, [delay]);
+  return (
+    <tr
+      className={`transition-all duration-300 ease-out hover:bg-muted/50 motion-reduce:transition-none ${
+        shown ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+      }`}
+    >
+      {children}
+    </tr>
   );
 }
