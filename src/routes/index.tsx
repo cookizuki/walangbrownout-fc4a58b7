@@ -9,6 +9,7 @@ import { roleLabel, useSession, type Role } from "@/lib/auth";
 import { CountUp } from "@/components/CountUp";
 import { AnimatedItem } from "@/components/AnimatedList";
 import { GlareHover } from "@/components/GlareHover";
+import { AdminPage } from "@/components/AdminPage";
 import wbLogo from "@/assets/wb-logo.jpg.asset.json";
 
 
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/")({
 type Tab =
   | "overview" | "inventory" | "batches" | "alerts"
   | "myday" | "counts" | "reorder"
-  | "picks" | "receiving";
+  | "picks" | "receiving" | "admin";
 
 const PAGE_META: Record<Tab, { title: string; subtitle: string }> = {
   overview: { title: "Overview", subtitle: "Page subtitle — real-time system status" },
@@ -41,10 +42,11 @@ const PAGE_META: Record<Tab, { title: string; subtitle: string }> = {
   reorder: { title: "Reorder Review", subtitle: "ROP breaches queued for purchasing" },
   picks: { title: "Pick Tasks", subtitle: "FIFO-enforced picking queue" },
   receiving: { title: "Receiving", subtitle: "Inbound POs, putaway and location" },
+  admin: { title: "Admin", subtitle: "User management and purchase order approvals" },
 };
 
 const ROLE_NAV: Record<Role, Tab[]> = {
-  ADMIN: ["overview", "inventory", "batches", "alerts"],
+  ADMIN: ["overview", "inventory", "batches", "alerts", "admin"],
   INVENTORY_STAFF: ["myday", "counts", "inventory", "reorder"],
   WAREHOUSE_STAFF: ["myday", "picks", "receiving", "batches"],
 };
@@ -78,6 +80,7 @@ function Dashboard() {
   }
 
   const navTabs = ROLE_NAV[account.role];
+  if (!navTabs.includes(tab)) setTab(navTabs[0]!);
   const meta = PAGE_META[tab];
   const showSearch = tab === "overview" || tab === "inventory";
 
@@ -185,6 +188,7 @@ function Dashboard() {
           {tab === "reorder" && <ReorderReviewPage />}
           {tab === "picks" && <PickTasksPage />}
           {tab === "receiving" && <ReceivingPage />}
+          {tab === "admin" && account.role === "ADMIN" && <AdminPage />}
         </main>
       </div>
     </div>
@@ -236,6 +240,11 @@ function SideNav({
               }`}
             >
               <span>{PAGE_META[key].title}</span>
+              {key === "admin" && (
+                <span className="inline-flex items-center justify-center rounded-full border border-border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Admin
+                </span>
+              )}
               {key === "alerts" && openAlerts > 0 && (
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-bold text-background">
                   {openAlerts}
